@@ -43,9 +43,19 @@ async function main() {
 
   const encryptedKey = process.env.DEPLOYER_PRIVATE_KEY_ENCRYPTED;
   if (!encryptedKey) {
-    console.log("🚫️ You don't have a deployer account. Run `yarn hardhat:account:generate` first,");
-    console.log("   then fund it at https://portal.hedera.com/faucet");
-    return;
+    // Two paths reach this point and they need different advice. Naming only
+    // the first sends anyone who already made an account at the portal off to
+    // create a second one they do not need.
+    console.log("🚫️ No deployer account is configured for this workspace.\n");
+    console.log("   If you already have a funded Hedera account:");
+    console.log("     yarn hardhat:account:import");
+    console.log("     …and paste its HEX encoded private key (the 0x… one, not the DER one).\n");
+    console.log("   If you do not have one yet:");
+    console.log("     yarn hardhat:account:generate");
+    console.log("     …then fund the address it prints at https://portal.hedera.com/faucet\n");
+    console.log("   Either way the account must be ECDSA, not ED25519 — every EVM flow in this");
+    console.log("   template needs ECDSA, and the portal offers both.");
+    process.exit(1);
   }
 
   const pass = await password({ message: "Enter password to decrypt private key:" });

@@ -40,7 +40,7 @@
             {
               "label": "1. Create a deployer account",
               "command": "{run:hardhat:account:generate}",
-              "text": "Creates an ECDSA key and stores it encrypted. ECDSA is required for the EVM flows."
+              "text": "Creates an ECDSA key and stores it encrypted. ECDSA is required for the EVM flows. Already have a funded Hedera account? Run yarn hardhat:account:import instead and paste its hex encoded private key."
             },
             {
               "label": "2. Fund it",

@@ -37,14 +37,20 @@ you only want to *run* the template, `docker compose up` needs Docker alone. The
 Solidity toolchain is only worth installing if you intend to change the contract.
 
 **ECDSA, not ED25519.** Every EVM flow in this template — the registry contract,
-wallet-signed custody transfers — needs an ECDSA account.
-`yarn hardhat:account:generate` creates one.
+wallet-signed custody transfers — needs an ECDSA account. The Hedera portal
+offers both, so check which one you made.
+
+**Already have a funded account?** Import it rather than generating a second
+one: `yarn hardhat:account:import`, then paste its *HEX encoded* private key
+(the `0x…` form, not the DER one). `yarn hardhat:account:generate` is only for
+starting from nothing.
 
 ## From zero to a live passport in 5 commands
 
 ```bash
 yarn install
 yarn hardhat:account:generate     # creates an ECDSA deployer key
+                                  # already have one? yarn hardhat:account:import
 # fund it at https://portal.hedera.com/faucet  (~25 HBAR)
 yarn passport:bootstrap           # deploy, create collection + topic, register a demo product
 yarn indexer:dev                  # index the mirror node and reconcile custody
@@ -393,7 +399,7 @@ The indexer never takes a key. It only reads.
 | Variable | Purpose |
 | --- | --- |
 | `HEDERA_RPC_URL` | JSON-RPC endpoint, defaults to Hashio testnet. |
-| `DEPLOYER_PRIVATE_KEY_ENCRYPTED` | Written by `yarn hardhat:account:generate`. Never fill this in by hand. |
+| `DEPLOYER_PRIVATE_KEY_ENCRYPTED` | Written by `yarn hardhat:account:generate` or `yarn hardhat:account:import`. Never fill this in by hand. |
 | `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_PRIVATE_KEY` | Optional. Leave blank and the bootstrap derives the operator from the deployer key, resolving its `0.0.x` id through the mirror node. |
 | `BOOTSTRAP_COLLECTION_FEE_HBAR` | HBAR forwarded to cover HTS token creation, default `20`. Raise it if `createCollection` reverts. |
 
@@ -428,7 +434,7 @@ Run `yarn passport:status` first — it checks every entity against the mirror n
 
 **Deployer shows an EVM address, not a `0.0.x` account id.** Both work with the [faucet](https://portal.hedera.com/faucet). An account only exists on the mirror node once it has been funded, which is why the bootstrap asks you to fund before it can derive the operator id.
 
-**ECDSA vs ED25519.** EVM flows need an ECDSA account. `yarn hardhat:account:generate` creates one.
+**ECDSA vs ED25519.** EVM flows need an ECDSA account; the portal offers both. `yarn hardhat:account:generate` creates one, or `yarn hardhat:account:import` takes a key you already have.
 
 **Mirror node lag.** The mirror node trails consensus by a second or two, so an entity can 404 immediately after it is created. The bootstrap polls rather than assuming; the UI shows `pending` rather than claiming `verified`.
 
