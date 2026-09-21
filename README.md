@@ -16,6 +16,31 @@ npm create scaffold-hbar@latest my-passports -- --template <your-org>/scaffold-h
 - **The canonical HCS pattern, end to end.** Hedera's own guidance is that HCS records what happened so it can be trusted later, and a database answers queries. This template implements exactly that — including the "write ten state transitions, rebuild state from the mirror node, compare" check, as a one-line script.
 - **Hedera-only capabilities.** Consensus timestamps, native NFT compliance keys, HIP-904 airdrops, the mirror node as the indexing source, and HTS-from-Solidity through the system contract at `0x167`.
 
+## Before you start
+
+| Path | What you need installed |
+| --- | --- |
+| **Explore it offline** | Node ≥ 20.18.3. Nothing else — corepack ships with Node and provides Yarn 3.2.3. |
+| **Run it live on Hedera testnet** | The same, plus a funded ECDSA account from [portal.hedera.com](https://portal.hedera.com). That is an account, not software. |
+| **Run the whole stack in containers** | Docker. No Node, no Yarn, no Solidity toolchain on your machine — the images install everything inside themselves. |
+
+Be aware of the install cost before you start the first one:
+
+```
+packages/nextjs/node_modules    1.7 GB    Next.js, RainbowKit, wagmi, viem
+packages/hardhat/node_modules   707 MB    Solidity toolchain, Hardhat, typechain
+packages/indexer/node_modules   181 MB    Drizzle, better-sqlite3, pg
+```
+
+About 2.6 GB and, on a cold Yarn cache, tens of minutes. Most of that is inherited
+from scaffold-hbar rather than added here, and almost all of it is toolchain: if
+you only want to *run* the template, `docker compose up` needs Docker alone. The
+Solidity toolchain is only worth installing if you intend to change the contract.
+
+**ECDSA, not ED25519.** Every EVM flow in this template — the registry contract,
+wallet-signed custody transfers — needs an ECDSA account.
+`yarn hardhat:account:generate` creates one.
+
 ## From zero to a live passport in 5 commands
 
 ```bash
@@ -158,6 +183,56 @@ not a Vercel-specific limitation.
 
 Deployment is always an explicit command after funding — never a side effect of
 scaffolding or CI.
+
+## Environment variables
+
+Nothing here is required to explore the template. Every variable below is for
+connecting it to a real registry.
+
+### `packages/nextjs`
+
+| Variable | Side | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_HEDERA_NETWORK` | public | `testnet` (default), `mainnet` or `previewnet`. Chooses the HashScan and mirror node endpoints. |
+| `NEXT_PUBLIC_PASSPORT_REGISTRY_ADDRESS` | public | Deployed `PassportRegistry`. Written by `yarn passport:bootstrap`. |
+| `NEXT_PUBLIC_PASSPORT_TOKEN_ID` | public | HTS collection id. Without it the issuer page explains what to run instead of offering a form that would fail. |
+| `INDEX_API_URL` | server | Where to read the index. Unset, the app serves bundled demo fixtures and says so. |
+| `PASSPORT_DATA_SOURCE` | server | Set to `fixtures` to force demo mode even when an index is configured. |
+| `HEDERA_OPERATOR_ID` | **server only** | Operator that creates topics and submits events. |
+| `HEDERA_OPERATOR_PRIVATE_KEY` | **server only** | Its ECDSA key. |
+
+**The operator variables are deliberately not `NEXT_PUBLIC_`.** A `NEXT_PUBLIC_`
+prefix inlines a value into the browser bundle, so prefixing these would publish
+the key that signs every HCS submission. `services/hederaClient.ts` imports
+`server-only`, which turns an accidental import from a client component into a
+build error rather than a leaked key at runtime. Leave them unset and the two
+write routes return `503` with setup instructions; everything else keeps working.
+
+### `packages/indexer`
+
+| Variable | Purpose |
+| --- | --- |
+| `HEDERA_NETWORK` | Which mirror node to read. |
+| `INDEXER_TOPIC_IDS` | Comma-separated topics to index. Takes precedence over discovery. |
+| `PASSPORT_REGISTRY_ADDRESS` | Discover topics from the registry's `ProductRegistered` logs instead. |
+| `INDEXER_POLL_MS` | Poll interval, default `5000`. |
+| `INDEX_DB_PATH` | SQLite file, default `./data/passport.db`. |
+| `DATABASE_URL` | Use Postgres instead of SQLite. |
+| `INDEXER_PORT` | Port for the read-only index API, default `3001`. |
+
+The indexer never takes a key. It only reads.
+
+### `packages/hardhat`
+
+| Variable | Purpose |
+| --- | --- |
+| `HEDERA_RPC_URL` | JSON-RPC endpoint, defaults to Hashio testnet. |
+| `DEPLOYER_PRIVATE_KEY_ENCRYPTED` | Written by `yarn hardhat:account:generate`. Never fill this in by hand. |
+| `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_PRIVATE_KEY` | Optional. Leave blank and the bootstrap derives the operator from the deployer key, resolving its `0.0.x` id through the mirror node. |
+| `BOOTSTRAP_COLLECTION_FEE_HBAR` | HBAR forwarded to cover HTS token creation, default `20`. Raise it if `createCollection` reverts. |
+
+Each workspace ships a `.env.example`. `.env` files are gitignored everywhere,
+and the harness fails the build if one is ever committed.
 
 ## Extending it
 
