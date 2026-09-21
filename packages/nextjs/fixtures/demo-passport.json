@@ -11,7 +11,7 @@
     "metadataJson": "{\"batteryCategory\":\"EV\",\"category\":\"battery\",\"chemistry\":\"LFP\",\"manufacturedAt\":\"2026-07-14\",\"manufacturer\":\"Northwind Cells\",\"name\":\"PowerCell 72 kWh EV Pack\",\"originCountry\":\"PL\",\"ratedCapacityKwh\":72}",
     "currentHolder": "0.0.3333333333",
     "status": "verified",
-    "lastReconciledAt": "2026-09-18T16:36:14.555Z"
+    "lastReconciledAt": "2026-09-18T17:23:43.749Z"
   },
   "events": [
     {
@@ -184,7 +184,7 @@
       "bytes": 95,
       "state": "verified",
       "note": null,
-      "checkedAt": "2026-09-18T16:36:14.546Z"
+      "checkedAt": "2026-09-18T17:23:43.743Z"
     }
   ]
 }

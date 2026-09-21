@@ -8,11 +8,10 @@ Every physical product — a battery, a garment, a pallet of coffee, a pharmaceu
 npm create scaffold-hbar@latest my-passports -- --template <your-org>/scaffold-hbar-product-passport
 ```
 
-> **Build status.** This template is being built in increments. Increment 01 (workspace shape, `PassportRegistry`, bootstrap) is complete; the HCS event layer and indexer (02), the UI (03) and the airdrop/claim flow (04) are in progress. Sections below marked _(increment NN)_ describe behaviour that is designed and specified in `.harness/prds/` but not yet implemented. This notice is removed when all four increments land.
-
 ## Why this template
 
-- **A real deadline.** EU battery passports are mandatory from 18 February 2027 under Regulation 2023/1542. ESPR extends Digital Product Passports to steel, textiles, furniture and electronics through 2030. Every brand selling into the EU needs a reference implementation.
+- **One passport system, any product category.** A category is a JSON file in `schemas/categories/`. It drives the register form, its validation and how the passport renders — adding batteries, textiles, food, pharmaceuticals or machine parts means adding a file, not touching code. Three ship as examples; the bundled demo shows a battery and a garment side by side precisely because neither is the point.
+- **A real deadline, and then many.** EU battery passports are mandatory from 18 February 2027 under Regulation 2023/1542 — the nearest hard date, which is why batteries make the sharpest worked example. ESPR extends Digital Product Passports to steel, textiles, furniture and electronics through 2030. Every brand selling into the EU will need a reference implementation.
 - **The canonical HCS pattern, end to end.** Hedera's own guidance is that HCS records what happened so it can be trusted later, and a database answers queries. This template implements exactly that — including the "write ten state transitions, rebuild state from the mirror node, compare" check, as a one-line script.
 - **Hedera-only capabilities.** Consensus timestamps, native NFT compliance keys, HIP-904 airdrops, the mirror node as the indexing source, and HTS-from-Solidity through the system contract at `0x167`.
 

@@ -70,8 +70,8 @@ const SWAPPED_CID = "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku
 
 const INTACT_BODY =
   "CONFORMITY CERTIFICATE\nEU 2023/1542 Annex XIII\nPowerCell 72 kWh EV Pack\nIssued by TUV Rheinland";
-const ATTESTED_BODY = "TEST REPORT\nState of health 100%\nCell imbalance within tolerance";
-const REPLACED_BODY = "TEST REPORT\nState of health 71%\nThis document replaced the attested one";
+const ATTESTED_BODY = "FIBRE COMPOSITION REPORT\n68% recycled polyester, 32% organic cotton\nVerified by OEKO-TEX";
+const REPLACED_BODY = "FIBRE COMPOSITION REPORT\n41% recycled content\nThis document replaced the attested one";
 
 const sha256Hex = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 
@@ -231,14 +231,13 @@ const forgedMessages = buildMessages(FORGED_TOPIC, [
       tokenId: TOKEN_ID,
       actor: ISSUER,
       payload: {
-        category: "battery",
-        name: "PowerCell 48 kWh LMT Pack",
-        manufacturer: "Northwind Cells",
-        batteryCategory: "LMT",
-        chemistry: "NMC",
-        ratedCapacityKwh: 48,
+        category: "textile",
+        name: "Coastal Parka, recycled shell",
+        manufacturer: "Vestland Apparel",
+        fibreComposition: "68% recycled polyester, 32% organic cotton",
+        recycledContentPct: 68,
         manufacturedAt: "2026-07-20",
-        originCountry: "PL",
+        originCountry: "PT",
       },
       ref: transactionId(ISSUER, 0),
     },
@@ -250,7 +249,7 @@ const forgedMessages = buildMessages(FORGED_TOPIC, [
       serial: 2,
       tokenId: TOKEN_ID,
       actor: ISSUER,
-      payload: { from: "Gdansk Plant 2", to: "Hamburg DC", carrier: "DB Schenker" },
+      payload: { from: "Porto Mill 4", to: "Hamburg DC", carrier: "DB Schenker" },
     },
   },
   {
@@ -269,7 +268,7 @@ const forgedMessages = buildMessages(FORGED_TOPIC, [
           {
             cid: SWAPPED_CID,
             hash: sha256Hex(ATTESTED_BODY),
-            name: "test-report.txt",
+            name: "fibre-composition-report.txt",
             type: "text/plain",
           },
         ],
