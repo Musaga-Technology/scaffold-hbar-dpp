@@ -74,7 +74,8 @@ So this template splits the job:
 | What happened, in what order | HCS topic, one per product | Consensus timestamps are the proof |
 | Who holds the product now | HTS NFT custody | The network's own answer, not a claim |
 | Answering queries | Indexer database | Rebuildable from the mirror node at any time |
-| Large content | Off-chain, hash + URL only | HCS messages are capped at 1024 bytes here |
+| Large content | Off-chain, content-addressed | HCS messages are capped at 1024 bytes here |
+| Documents still being what was attested | Indexer re-fetches and re-hashes each CID | A pinned file nobody checks proves nothing |
 
 The two truth sources are deliberately reconciled rather than merged. For every custody claim on HCS, the indexer checks the NFT's real transfer history on the mirror node. A claim with no matching transfer is surfaced as a **discrepancy**, never hidden. `yarn indexer:verify` replays the whole log into a temporary index and diffs it against the live one _(increment 02)_.
 
@@ -128,6 +129,79 @@ Every lifecycle event is a compact JSON message on the product's topic, validate
 `payloadHash` is the sha256 of the canonical JSON of `payload` (keys sorted, no whitespace), so the indexer can prove a payload was not edited after the fact. Consensus timestamp is authoritative; `ts` is only what the client claimed.
 
 Attachments — certificates, photos, test reports — are referenced by hash and URL. Nothing large goes on HCS.
+
+## Documents, and why storage is load-bearing here
+
+A Digital Product Passport is mostly documents. The EU battery regulation does
+not ask for a timeline of shipping events — it asks for a conformity
+declaration, a carbon-footprint statement, test reports, an end-of-life record.
+Those are the regulatory payload, and none of them can go on HCS: a topic is a
+log, capped at 1024 bytes in this template because messages cost money and a
+ledger is not a filing cabinet.
+
+So the topic carries a *reference*. The obvious reference is a URL, and a URL is
+worthless for this purpose. It is a promise that some server will still be there
+in 2034 and will still be serving the same bytes. Nothing checks either claim.
+
+This template references documents by **CID**, so the address and the integrity
+proof are the same value:
+
+```json
+"payload": {
+  "result": "pass",
+  "inspector": "TUV Rheinland",
+  "attachments": [
+    {
+      "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+      "hash": "9f86d081884c7d65…",
+      "name": "conformity-certificate.pdf",
+      "type": "application/pdf"
+    }
+  ]
+}
+```
+
+Two things follow, and both matter.
+
+**The reference cannot be edited after the fact.** Attachments live inside
+`payload`, so `payloadHash` covers them. Change the CID and the event's own hash
+stops matching, and the indexer reports it exactly as it reports a forged
+custody claim.
+
+**The content is checked, not assumed.** Pinning a certificate is easy and
+almost nobody verifies it afterwards. On every pass the indexer fetches each
+document back through a gateway, hashes what actually arrives, and compares it
+to the digest committed on HCS:
+
+| State | Meaning |
+| --- | --- |
+| `verified` | Fetched and re-hashed. This is the document that was attested. |
+| `mismatch` | Something is at that address, but not what was attested. It was replaced. |
+| `unreachable` | Nothing answered. **Not** evidence the content is wrong — only that it could not be checked. |
+| `pending` | Not checked yet. |
+
+A `mismatch` downgrades the whole passport to `discrepancy`, because a swapped
+certificate is as serious as a forged custody claim. An `unreachable` does not:
+a gateway having a bad day is not fraud, and a tool that cried wolf about it
+would train people to ignore the badge that matters. The bundled demo passports
+show both — serial 1 has a certificate that verifies, serial 2 has a test report
+that was replaced after attestation.
+
+**What this does not prove.** That a document says what it claims to say. It
+proves only that the document is the one attested at that consensus timestamp.
+That is a narrow guarantee and the UI states it narrowly.
+
+### Configuring it
+
+Set `PINATA_JWT` in `packages/nextjs/.env.local`; a free key is enough for
+testnet. Without it, attaching a document returns `503` with instructions and
+every other part of the template is unaffected — verification, custody,
+reconciliation and the public page all work with no storage configured at all.
+
+The provider sits behind one interface in `packages/nextjs/services/storage/`.
+Filebase, web3.storage or a self-hosted IPFS node are the same shape. Arweave —
+pay once, stored permanently — is the natural upgrade for passports that must
+outlive the company that made the product; see `AGENTS.md`.
 
 ## Commands
 

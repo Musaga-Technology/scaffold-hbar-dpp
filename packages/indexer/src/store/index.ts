@@ -13,7 +13,7 @@ import type { IndexStore } from "./types.js";
 export { SqliteIndexStore, openSqliteStore } from "./sqlite.js";
 export { PostgresIndexStore, openPostgresStore } from "./postgres.js";
 export * from "./schema.js";
-export type { EventVerdict, IndexStats, IndexStore, PassportView } from "./types.js";
+export type { AttachmentVerdict, EventVerdict, IndexStats, IndexStore, PassportView } from "./types.js";
 
 /**
  * Opens the index described by the config.

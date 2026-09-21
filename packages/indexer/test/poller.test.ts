@@ -129,7 +129,9 @@ describe("pollTopic", () => {
     const { client } = createFakeMirror();
     const results = await pollOnce(store, client, [CLEAN_TOPIC, FORGED_TOPIC]);
 
-    expect(results.map(r => r.written)).toEqual([5, 3]);
+    // Serial 2 carries four events: registration, shipping, the inspection whose
+    // document was later swapped, and the forged custody claim.
+    expect(results.map(r => r.written)).toEqual([5, 4]);
     expect((await store.listProducts()).map(p => p.serial)).toEqual([1, 2]);
   });
 });

@@ -10,12 +10,13 @@ Use `yarn`. Never `npm` or `pnpm` — the static validator fails the build if `p
 
 These are not style preferences. Breaking one breaks the template's premise.
 
-1. **HCS is a log, not a database.** Messages are capped at 1024 bytes and validated against `schemas/passport-event.schema.json`. Large content — certificates, images, reports — is referenced by sha256 hash and URL. Never embed it.
+1. **HCS is a log, not a database.** Messages are capped at 1024 bytes and validated against `schemas/passport-event.schema.json`. Large content — certificates, images, reports — is referenced by **CID plus sha256**, never embedded and never by bare URL. A URL is a promise; a CID is a proof.
 2. **The browser never reads HCS.** Reads come from the index API. Acceptance assertion C8 checks this in devtools.
-3. **Custody truth comes from the NFT, not from HCS.** HCS carries *claims*. The mirror node's NFT transfer history is what actually happened. Where they disagree, show a `discrepancy` — never reconcile by overwriting one with the other, and never hide it.
-4. **Secrets are server-side only.** `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` never get a `NEXT_PUBLIC_` prefix and never reach the browser. The indexer holds no key; it only reads.
-5. **Everything must work with no `.env`, no keys and no network.** `yarn lint`, `yarn next:check-types`, `yarn next:build`, `yarn hardhat:compile`, `yarn hardhat:test` and `yarn indexer:test` all pass offline. The UI falls back to bundled fixtures.
-6. **Never claim `verified` for `pending`.** If the indexer has not caught up, say so.
+3. **A referenced document is checked, not assumed.** Pinning a file proves nothing on its own. The indexer fetches every attachment back and re-hashes it against the digest committed on HCS. `mismatch` means it was replaced and downgrades the passport; `unreachable` means a gateway failed and does **not** — conflating them would be crying wolf.
+4. **Custody truth comes from the NFT, not from HCS.** HCS carries *claims*. The mirror node's NFT transfer history is what actually happened. Where they disagree, show a `discrepancy` — never reconcile by overwriting one with the other, and never hide it.
+5. **Secrets are server-side only.** `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` never get a `NEXT_PUBLIC_` prefix and never reach the browser. The indexer holds no key; it only reads.
+6. **Everything must work with no `.env`, no keys and no network.** `yarn lint`, `yarn next:check-types`, `yarn next:build`, `yarn hardhat:compile`, `yarn hardhat:test` and `yarn indexer:test` all pass offline. The UI falls back to bundled fixtures.
+7. **Never claim `verified` for `pending`.** If the indexer has not caught up, say so.
 
 ## Repo map
 
@@ -29,6 +30,9 @@ These are not style preferences. Breaking one breaks the template's premise.
 | `packages/hardhat/scripts/lib/events.ts` | Canonicalisation, sha256, event construction |
 | `packages/indexer/src/` | Mirror node poller, decoder, store, reconciliation |
 | `packages/indexer/src/reconcile.ts` | Where custody claims are checked against NFT transfers |
+| `packages/indexer/src/attachments.ts` | Where referenced documents are fetched back and re-hashed |
+| `packages/indexer/src/events/attachments.ts` | The attachment reference model, shared with the app |
+| `packages/nextjs/services/storage/` | Pinning provider interface; Pinata is the default |
 | `packages/nextjs/app/verify/[serial]/` | Public passport page — no wallet, no env |
 | `packages/nextjs/app/api/passport/` | Server routes: topics, events, index queries |
 | `packages/nextjs/contracts/deployedContracts.ts` | Generated on deploy — do not hand-edit |
@@ -77,6 +81,21 @@ Event types are a registry, not a hardcoded switch. Add the type to the pattern 
 ### Change how reconciliation decides
 
 All of it lives in `packages/indexer/src/reconcile.ts`. A `custody.transferred` event is matched against `/api/v1/tokens/{tokenId}/nfts/{serial}/transactions` by transaction id, or by (from, to) within a time window. Anything unmatched becomes a `discrepancy` with a human-readable note.
+
+### Swap the storage provider
+
+`packages/nextjs/services/storage/` defines one interface with a single `put`
+method. `pinata.ts` is about sixty lines; Filebase, web3.storage and a
+self-hosted IPFS node are the same shape. Nothing outside that directory knows
+which provider is in use.
+
+**Arweave** is the upgrade worth making for regulated categories. IPFS pins
+persist while someone keeps paying to pin them; Arweave is paid once and stored
+permanently, which matches a passport that must outlive the product and possibly
+the manufacturer. Implement `StorageProvider` against Irys or a direct Arweave
+client and set it in `requireStorageProvider()`. The indexer needs no change —
+it verifies by fetching a CID through a gateway, and an Arweave transaction id
+resolves the same way through an `ar://` gateway.
 
 ### Swap SQLite for Postgres
 

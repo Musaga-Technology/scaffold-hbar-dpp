@@ -60,6 +60,23 @@ export interface PassportEventRow {
   reconciliationNote: string | null;
 }
 
+/** What the indexer concluded about a referenced document. */
+export type AttachmentState = "pending" | "verified" | "mismatch" | "unreachable";
+
+export interface PassportAttachment {
+  topicId: string;
+  sequenceNumber: number;
+  cid: string;
+  declaredHash: string;
+  name: string | null;
+  mediaType: string | null;
+  observedHash: string | null;
+  bytes: number | null;
+  state: AttachmentState;
+  note: string | null;
+  checkedAt: string | null;
+}
+
 export interface PassportTransfer {
   tokenId: string;
   serial: number;
@@ -74,11 +91,15 @@ export interface PassportView {
   product: PassportProduct;
   events: PassportEventRow[];
   transfers: PassportTransfer[];
+  attachments: PassportAttachment[];
 }
 
 export interface IndexStats {
   products: number;
   events: number;
+  attachments: number;
+  attachmentsVerified: number;
+  attachmentsFailed: number;
   verified: number;
   pending: number;
   discrepancies: number;
@@ -173,12 +194,15 @@ export async function listEvents(serial: number): Promise<PassportEventRow[]> {
 /** Registry-wide counts for the landing page. */
 export async function getStats(): Promise<IndexStats> {
   if (dataSource() === "fixtures") {
-    return demoStats as IndexStats;
+    return demoStats as unknown as IndexStats;
   }
   return (
     (await fetchFromIndex<IndexStats>("/api/passport/stats")) ?? {
       products: 0,
       events: 0,
+      attachments: 0,
+      attachmentsVerified: 0,
+      attachmentsFailed: 0,
       verified: 0,
       pending: 0,
       discrepancies: 0,

@@ -40,6 +40,7 @@ services:
       INDEXER_TOPIC_IDS: ${INDEXER_TOPIC_IDS:-}
       PASSPORT_REGISTRY_ADDRESS: ${PASSPORT_REGISTRY_ADDRESS:-}
       INDEXER_PORT: "3001"
+      IPFS_GATEWAY_URL: ${IPFS_GATEWAY_URL:-https://ipfs.io}
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -68,6 +69,9 @@ services:
       # and everything else keeps working.
       HEDERA_OPERATOR_ID: ${HEDERA_OPERATOR_ID:-}
       HEDERA_OPERATOR_PRIVATE_KEY: ${HEDERA_OPERATOR_PRIVATE_KEY:-}
+      # Storage for passport documents. Also server-side only.
+      PINATA_JWT: ${PINATA_JWT:-}
+      PINATA_GATEWAY_URL: ${PINATA_GATEWAY_URL:-}
     ports:
       - "3000:3000"
     restart: unless-stopped

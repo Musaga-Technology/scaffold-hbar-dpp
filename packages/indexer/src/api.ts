@@ -21,6 +21,7 @@ function passportPayload(view: NonNullable<Awaited<ReturnType<IndexStore["getPas
       payload: event.payloadJson ? JSON.parse(event.payloadJson) : null,
     })),
     transfers: view.transfers,
+    attachments: view.attachments,
   };
 }
 

@@ -5,43 +5,151 @@
   "description": "Compact HCS message for a product lifecycle event. Serialized size must be <= 1024 bytes. Consensus timestamp assigned by Hedera is authoritative; ts is client-side only.",
   "type": "object",
   "additionalProperties": true,
-  "required": ["v", "type", "serial", "tokenId", "ts", "actor", "payloadHash", "payload"],
+  "required": [
+    "v",
+    "type",
+    "serial",
+    "tokenId",
+    "ts",
+    "actor",
+    "payloadHash",
+    "payload"
+  ],
   "properties": {
-    "v": { "type": "integer", "const": 1, "description": "Event schema version" },
+    "v": {
+      "type": "integer",
+      "const": 1,
+      "description": "Event schema version"
+    },
     "type": {
       "type": "string",
       "pattern": "^(product\\.(registered|shipped|inspected|repaired|recycled)|custody\\.transferred|custom\\.[a-z0-9_.-]{1,40})$"
     },
-    "serial": { "type": "integer", "minimum": 1 },
-    "tokenId": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
-    "ts": { "type": "string", "format": "date-time" },
-    "actor": { "type": "string", "description": "EVM address (0x…) or Hedera account id (0.0.x) of the submitter" },
-    "actorDid": { "type": "string", "pattern": "^did:hedera:(mainnet|testnet):" },
-    "payloadHash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "sha256 of canonical JSON (sorted keys, no whitespace) of payload" },
-    "payload": { "type": "object", "maxProperties": 24 },
-    "ref": { "type": "string", "description": "Hedera transaction id (0.0.x@sec.nanos) or EVM tx hash of the on-chain action this event describes" },
-    "prev": { "type": "integer", "minimum": 1, "description": "Sequence number of the previous event on this topic, if known" },
-    "sig": { "type": "string", "description": "Signature over payloadHash by actor (EIP-191) or actorDid key" }
+    "serial": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tokenId": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "type": "string",
+      "description": "EVM address (0x\u2026) or Hedera account id (0.0.x) of the submitter"
+    },
+    "actorDid": {
+      "type": "string",
+      "pattern": "^did:hedera:(mainnet|testnet):"
+    },
+    "payloadHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 of canonical JSON (sorted keys, no whitespace) of payload"
+    },
+    "payload": {
+      "type": "object",
+      "maxProperties": 24,
+      "description": "Small, typed payload. Large content is referenced through $defs/attachment, never embedded. Serialized event size is capped at 1024 bytes, which in practice means at most a few attachments."
+    },
+    "ref": {
+      "type": "string",
+      "description": "Hedera transaction id (0.0.x@sec.nanos) or EVM tx hash of the on-chain action this event describes"
+    },
+    "prev": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Sequence number of the previous event on this topic, if known"
+    },
+    "sig": {
+      "type": "string",
+      "description": "Signature over payloadHash by actor (EIP-191) or actorDid key"
+    }
   },
   "$defs": {
     "custodyPayload": {
       "type": "object",
-      "required": ["from", "to"],
+      "required": [
+        "from",
+        "to"
+      ],
       "properties": {
-        "from": { "type": "string" },
-        "to": { "type": "string" },
-        "reason": { "type": "string", "maxLength": 120 }
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 120
+        }
       }
     },
     "inspectionPayload": {
       "type": "object",
-      "required": ["result"],
+      "required": [
+        "result"
+      ],
       "properties": {
-        "result": { "enum": ["pass", "fail", "conditional"] },
-        "inspector": { "type": "string", "maxLength": 80 },
-        "note": { "type": "string", "maxLength": 200 },
-        "attachmentUrl": { "type": "string", "format": "uri" },
-        "attachmentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "result": {
+          "enum": [
+            "pass",
+            "fail",
+            "conditional"
+          ]
+        },
+        "inspector": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "attachments": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/attachment"
+          }
+        }
+      }
+    },
+    "attachment": {
+      "type": "object",
+      "description": "A content-addressed document referenced by an event. Documents never go on HCS; the CID is both the address and the integrity proof, and the declared sha256 lets the content be checked without speaking IPFS. Because attachments live inside payload, they are covered by payloadHash.",
+      "required": [
+        "cid",
+        "hash"
+      ],
+      "properties": {
+        "cid": {
+          "type": "string",
+          "minLength": 46,
+          "maxLength": 100,
+          "description": "IPFS CIDv0 or CIDv1"
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of the raw bytes"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "type": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     }
   }

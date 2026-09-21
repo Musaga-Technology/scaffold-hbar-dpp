@@ -215,12 +215,21 @@ export async function reconcileAll(
     const { verdicts, status, currentHolder } = reconcileSerial(events, transfers);
 
     await store.recordVerdicts(verdicts);
-    await store.setProductStatus(product.serial, status, currentHolder);
+
+    // A document that has been swapped since it was attested is exactly as
+    // serious as a forged custody claim, and is treated the same way. An
+    // unreachable one is not: a gateway outage is not evidence of fraud, and
+    // downgrading a passport for it would be crying wolf.
+    const attachments = await store.listAttachments(product.serial);
+    const swapped = attachments.filter(attachment => attachment.state === "mismatch").length;
+    const finalStatus = swapped > 0 ? "discrepancy" : status;
+
+    await store.setProductStatus(product.serial, finalStatus, currentHolder);
 
     summaries.push({
       serial: product.serial,
-      status,
-      discrepancies: verdicts.filter(verdict => verdict.reconciliation === "discrepancy").length,
+      status: finalStatus,
+      discrepancies: verdicts.filter(verdict => verdict.reconciliation === "discrepancy").length + swapped,
     });
   }
 

@@ -21,6 +21,8 @@ import { buildEvent, type BuildEventInput } from "../src/events/index.js";
 import { pollOnce } from "../src/poller.js";
 import { reconcileAll } from "../src/reconcile.js";
 import { createMemoryStore } from "../src/store/index.js";
+import { verifyPendingAttachments, type FetchLike as GatewayFetch } from "../src/attachments.js";
+import { createHash } from "node:crypto";
 import { MirrorNodeClient, type FetchLike } from "../src/mirror.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -50,6 +52,28 @@ const MALFORMED_TOPIC = "0.0.8888888888";
  */
 const BASE_ISO = "2026-09-21T10:00:00Z";
 const BASE_EPOCH = Math.floor(Date.parse(BASE_ISO) / 1000);
+
+/**
+ * Demo documents.
+ *
+ * `INTACT` is a certificate whose bytes still hash to what the event committed
+ * to. `SWAPPED` is one that was replaced after attestation — the passport
+ * references it, the hash on HCS no longer matches, and the indexer says so.
+ * That second case is the whole reason the storage integration is load-bearing
+ * rather than decorative, so it is in the fixtures where a reviewer can see it.
+ *
+ * CIDs are syntactically valid but unallocated, for the same reason the entity
+ * ids are: nothing here should resolve to somebody else's real content.
+ */
+const INTACT_CID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
+const SWAPPED_CID = "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku";
+
+const INTACT_BODY =
+  "CONFORMITY CERTIFICATE\nEU 2023/1542 Annex XIII\nPowerCell 72 kWh EV Pack\nIssued by TUV Rheinland";
+const ATTESTED_BODY = "TEST REPORT\nState of health 100%\nCell imbalance within tolerance";
+const REPLACED_BODY = "TEST REPORT\nState of health 71%\nThis document replaced the attested one";
+
+const sha256Hex = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 
 const ISSUER = "0.0.1111111111";
 const DISTRIBUTOR = "0.0.2222222222";
@@ -139,7 +163,18 @@ const cleanMessages = buildMessages(CLEAN_TOPIC, [
       serial: 1,
       tokenId: TOKEN_ID,
       actor: DISTRIBUTOR,
-      payload: { result: "pass", inspector: "TUV Rheinland", note: "State of health 100%." },
+      payload: {
+        result: "pass",
+        inspector: "TUV Rheinland",
+        attachments: [
+          {
+            cid: INTACT_CID,
+            hash: sha256Hex(INTACT_BODY),
+            name: "conformity-certificate.txt",
+            type: "text/plain",
+          },
+        ],
+      },
     },
   },
   {
@@ -216,6 +251,29 @@ const forgedMessages = buildMessages(FORGED_TOPIC, [
       tokenId: TOKEN_ID,
       actor: ISSUER,
       payload: { from: "Gdansk Plant 2", to: "Hamburg DC", carrier: "DB Schenker" },
+    },
+  },
+  {
+    offsetSeconds: 90,
+    input: {
+      type: "product.inspected",
+      serial: 2,
+      tokenId: TOKEN_ID,
+      actor: ISSUER,
+      payload: {
+        result: "pass",
+        inspector: "In-house QA",
+        // The hash committed here is of ATTESTED_BODY. The gateway now serves
+        // REPLACED_BODY at that address.
+        attachments: [
+          {
+            cid: SWAPPED_CID,
+            hash: sha256Hex(ATTESTED_BODY),
+            name: "test-report.txt",
+            type: "text/plain",
+          },
+        ],
+      },
     },
   },
   {
@@ -318,6 +376,28 @@ const store = await createMemoryStore();
 const mirror = new MirrorNodeClient("https://testnet.mirrornode.hedera.com", localFetch);
 
 await pollOnce(store, mirror, [CLEAN_TOPIC, FORGED_TOPIC]);
+
+// A gateway that still serves the intact certificate, but has had the test
+// report replaced underneath it.
+const gatewayBodies: Record<string, string> = {
+  [INTACT_CID]: INTACT_BODY,
+  [SWAPPED_CID]: REPLACED_BODY,
+};
+const gatewayFetch: GatewayFetch = async (url: string) => {
+  const cid = url.split("/ipfs/")[1] ?? "";
+  const body = gatewayBodies[cid];
+  if (body === undefined) {
+    return { ok: false, status: 404, statusText: "Not Found", arrayBuffer: async () => new ArrayBuffer(0) };
+  }
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    arrayBuffer: async () => new TextEncoder().encode(body).buffer as ArrayBuffer,
+  };
+};
+
+await verifyPendingAttachments(store, "https://ipfs.io", gatewayFetch);
 await reconcileAll(store, mirror);
 
 fs.mkdirSync(APP_FIXTURE_DIR, { recursive: true });
@@ -339,6 +419,7 @@ for (const [serial, name] of [
       payload: event.payloadJson ? JSON.parse(event.payloadJson) : null,
     })),
     transfers: view.transfers,
+    attachments: view.attachments,
   };
 
   fs.writeFileSync(path.join(APP_FIXTURE_DIR, name), `${JSON.stringify(payload, null, 2)}\n`, "utf8");

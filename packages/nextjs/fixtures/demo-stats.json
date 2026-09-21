@@ -1,6 +1,9 @@
 {
   "products": 2,
-  "events": 8,
+  "events": 9,
+  "attachments": 2,
+  "attachmentsVerified": 1,
+  "attachmentsFailed": 1,
   "verified": 1,
   "pending": 0,
   "discrepancies": 1,

@@ -8,6 +8,16 @@
 export { canonicalize, hashPayload, sha256Hex } from "./canonical.js";
 export { assertNoEmbeddedContent, buildEvent, type BuildEventInput } from "./build.js";
 export { decodeBase64Event, decodeEvent } from "./decode.js";
+export {
+  DEFAULT_IPFS_GATEWAY,
+  gatewayUrl,
+  ipfsUri,
+  isLikelyCid,
+  isSha256Hex,
+  readAttachments,
+  type AttachmentState,
+  type EventAttachment,
+} from "./attachments.js";
 export { reassemble, type AssembledMessage, type ChunkInfo, type MirrorTopicMessage } from "./reassemble.js";
 export {
   BUILT_IN_EVENT_TYPES,

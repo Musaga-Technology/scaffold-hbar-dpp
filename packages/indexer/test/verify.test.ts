@@ -155,7 +155,7 @@ describe("index API routes", () => {
   it("serves a passport's events", async () => {
     const { status, body } = await handleRoute(store, "/api/passport/products/2/events");
     expect(status).toBe(200);
-    expect((body as { events: unknown[] }).events).toHaveLength(3);
+    expect((body as { events: unknown[] }).events).toHaveLength(4);
   });
 
   it("404s an unknown serial and an unknown route", async () => {

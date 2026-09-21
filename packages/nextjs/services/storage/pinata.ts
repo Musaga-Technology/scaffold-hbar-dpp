@@ -1,0 +1,85 @@
+/**
+ * Pinata IPFS provider.
+ *
+ * Pinata is the default because a free key is enough to run this template end
+ * to end on testnet. Nothing here is Pinata-specific beyond the endpoint and
+ * the auth header; the StorageProvider interface is the seam for swapping it.
+ */
+import {
+  MAX_DOCUMENT_BYTES,
+  type StorageProvider,
+  StorageUnavailableError,
+  type StoredDocument,
+  hashFile,
+} from "./index";
+import "server-only";
+
+const PINATA_PIN_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
+
+interface PinataResponse {
+  IpfsHash?: string;
+  PinSize?: number;
+  error?: unknown;
+}
+
+/**
+ * Builds a Pinata-backed storage provider.
+ *
+ * @param jwt Pinata JWT, server-side only.
+ * @param gateway Optional dedicated gateway; only affects display, not the CID.
+ * @returns A provider that pins documents to IPFS.
+ */
+export function createPinataProvider(jwt: string, gateway?: string): StorageProvider {
+  return {
+    name: gateway ? `pinata (${gateway})` : "pinata",
+
+    async put(file: File): Promise<StoredDocument> {
+      if (file.size > MAX_DOCUMENT_BYTES) {
+        throw new StorageUnavailableError(
+          `Document is ${file.size} bytes, over the ${MAX_DOCUMENT_BYTES}-byte limit for this template.`,
+        );
+      }
+
+      // Hash what actually arrived, before anything is sent anywhere. The
+      // passport commits to this digest, so it must be computed from the bytes
+      // this server saw rather than taken on trust from the browser.
+      const { hash } = await hashFile(file);
+
+      const form = new FormData();
+      form.append("file", file, file.name);
+
+      let response: Response;
+      try {
+        response = await fetch(PINATA_PIN_URL, {
+          method: "POST",
+          headers: { authorization: `Bearer ${jwt}` },
+          body: form,
+        });
+      } catch (error) {
+        throw new StorageUnavailableError(
+          `Could not reach Pinata: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new StorageUnavailableError(
+          `Pinata rejected the upload: ${response.status} ${response.statusText}. ${detail.slice(0, 200)}`,
+        );
+      }
+
+      const body = (await response.json()) as PinataResponse;
+      if (!body.IpfsHash) {
+        throw new StorageUnavailableError("Pinata accepted the upload but returned no CID.");
+      }
+
+      return {
+        cid: body.IpfsHash,
+        hash,
+        bytes: file.size,
+        name: file.name,
+        type: file.type || "application/octet-stream",
+      };
+    },
+  };
+}

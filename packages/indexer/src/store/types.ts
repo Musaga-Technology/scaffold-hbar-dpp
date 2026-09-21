@@ -7,6 +7,8 @@
  * "open a second store, replay into it, diff the two".
  */
 import type {
+  AttachmentRow,
+  NewAttachmentRow,
   EventRow,
   NewEventRow,
   NewNftTransferRow,
@@ -25,17 +27,32 @@ export interface EventVerdict {
   note?: string;
 }
 
+/** A verdict to record against one attachment. */
+export interface AttachmentVerdict {
+  topicId: string;
+  sequenceNumber: number;
+  cid: string;
+  state: AttachmentRow["state"];
+  observedHash?: string;
+  bytes?: number;
+  note?: string;
+}
+
 /** Everything the read API serves for one passport. */
 export interface PassportView {
   product: ProductRow;
   events: EventRow[];
   transfers: NftTransferRow[];
+  attachments: AttachmentRow[];
 }
 
 /** Aggregate counts for the landing page. */
 export interface IndexStats {
   products: number;
   events: number;
+  attachments: number;
+  attachmentsVerified: number;
+  attachmentsFailed: number;
   verified: number;
   pending: number;
   discrepancies: number;
@@ -75,6 +92,13 @@ export interface IndexStore {
   /** Inserts or updates an observed NFT transfer. */
   upsertTransfer(transfer: NewNftTransferRow): Promise<void>;
   listTransfers(tokenId: string, serial: number): Promise<NftTransferRow[]>;
+
+  /** Records an attachment reference found in an event payload. */
+  upsertAttachment(attachment: NewAttachmentRow): Promise<void>;
+  listAttachments(serial: number): Promise<AttachmentRow[]>;
+  listAttachmentsByEvent(topicId: string, sequenceNumber: number): Promise<AttachmentRow[]>;
+  listAllAttachments(): Promise<AttachmentRow[]>;
+  recordAttachmentVerdicts(verdicts: readonly AttachmentVerdict[]): Promise<void>;
 
   getCursor(topicId: string): Promise<number>;
   setCursor(topicId: string, lastSequenceNumber: number): Promise<void>;

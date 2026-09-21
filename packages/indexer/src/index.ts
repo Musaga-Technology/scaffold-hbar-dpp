@@ -8,6 +8,7 @@ import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { startApi } from "./api.js";
+import { verifyPendingAttachments } from "./attachments.js";
 import { hasIndexTarget, loadConfig, type IndexerConfig } from "./config.js";
 import { resolveTopicIds } from "./discover.js";
 import { MirrorNodeClient } from "./mirror.js";
@@ -35,6 +36,7 @@ Environment:
   INDEX_DB_PATH              SQLite file (default ./data/passport.db)
   DATABASE_URL               Use Postgres instead of SQLite
   INDEXER_PORT               Index API port for \`dev\` (default 3001)
+  IPFS_GATEWAY_URL           Gateway used to verify attachments (default ipfs.io)
 
 Run \`yarn passport:bootstrap\` first — it writes packages/indexer/.env.local
 with the registry address and the demo product's topic id.`;
@@ -58,6 +60,7 @@ export function describeConfig(config: IndexerConfig): string {
     `indexing:    ${target}`,
     `store:       ${store}`,
     `poll:        ${config.pollMs}ms`,
+    `documents:   ${config.ipfsGateway}`,
   ].join("\n");
 }
 
@@ -132,6 +135,12 @@ export async function runCommand(
       out("\nDropping the index and rebuilding from sequence 1…");
       await store.reset();
       reportPoll(await pollOnce(store, mirror, topicIds), out);
+      const documents = await verifyPendingAttachments(store, config.ipfsGateway);
+      if (documents.checked > 0) {
+        out(
+          `  documents: ${documents.verified} verified, ${documents.mismatch} mismatched, ${documents.unreachable} unreachable`,
+        );
+      }
       const summaries = await reconcileAll(store, mirror);
       for (const summary of summaries) {
         out(`  serial ${summary.serial}: ${summary.status}${summary.discrepancies ? " ⚠" : ""}`);
@@ -180,6 +189,19 @@ export async function runCommand(
             knownTopics = topicIds;
           }
           reportPoll(await pollOnce(store, mirror, topicIds), out);
+
+          // Fetch back every document a passport references and check it
+          // against the hash the event committed to. Run before reconciliation
+          // so a swapped document is reflected in the passport's status on the
+          // same pass it is discovered.
+          const documents = await verifyPendingAttachments(store, config.ipfsGateway);
+          if (documents.checked > 0) {
+            const parts = [`${documents.verified} verified`];
+            if (documents.mismatch > 0) parts.push(`${documents.mismatch} MISMATCHED`);
+            if (documents.unreachable > 0) parts.push(`${documents.unreachable} unreachable`);
+            out(`  documents: ${parts.join(", ")}`);
+          }
+
           await reconcileAll(store, mirror);
         }
       } catch (error) {

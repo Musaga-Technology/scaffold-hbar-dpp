@@ -110,6 +110,43 @@ export const nftTransfers = sqliteTable(
   ],
 );
 
+/**
+ * One row per attachment referenced by an event.
+ *
+ * Separate from `events` because an event may reference more than one document,
+ * and because each is verified independently: a passport can have one
+ * certificate that checks out and another that has been swapped.
+ */
+export const attachments = sqliteTable(
+  "attachments",
+  {
+    topicId: text("topic_id").notNull(),
+    sequenceNumber: integer("sequence_number").notNull(),
+    cid: text("cid").notNull(),
+    /** sha256 the event declared for the content. */
+    declaredHash: text("declared_hash").notNull(),
+    name: text("name"),
+    mediaType: text("media_type"),
+    /** sha256 the indexer computed from what the gateway actually returned. */
+    observedHash: text("observed_hash"),
+    bytes: integer("bytes"),
+    state: text("state").$type<AttachmentState>().notNull().default("pending"),
+    note: text("note"),
+    checkedAt: text("checked_at"),
+  },
+  table => [
+    primaryKey({ columns: [table.topicId, table.sequenceNumber, table.cid] }),
+    index("attachments_state_idx").on(table.state),
+  ],
+);
+
+/** What the indexer concluded about an attachment after fetching it. */
+export const ATTACHMENT_STATES = ["pending", "verified", "mismatch", "unreachable"] as const;
+export type AttachmentState = (typeof ATTACHMENT_STATES)[number];
+
+export type AttachmentRow = typeof attachments.$inferSelect;
+export type NewAttachmentRow = typeof attachments.$inferInsert;
+
 export type ProductRow = typeof products.$inferSelect;
 export type NewProductRow = typeof products.$inferInsert;
 export type EventRow = typeof events.$inferSelect;

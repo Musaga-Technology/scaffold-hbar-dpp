@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { DemoBanner } from "~~/components/passport/DemoBanner";
+import { Documents } from "~~/components/passport/Documents";
 import { IdentifierCard } from "~~/components/passport/IdentifierCard";
 import { QrPanel } from "~~/components/passport/QrPanel";
 import { StatusBadge } from "~~/components/passport/StatusBadge";
@@ -65,7 +66,7 @@ const Verify = async ({ params }: PageProps) => {
   const passport = await getPassport(serial);
   if (!passport) notFound();
 
-  const { product, events } = passport;
+  const { product, events, attachments } = passport;
   const fields = registrationFields(product.metadataJson);
   const manufacturer = typeof fields.manufacturer === "string" ? fields.manufacturer : undefined;
   const gtin = typeof fields.gtin === "string" ? fields.gtin : undefined;
@@ -126,6 +127,8 @@ const Verify = async ({ params }: PageProps) => {
           <QrPanel path={verifyPath(product.serial, gtin)} serial={product.serial} />
         </aside>
       </div>
+
+      <Documents attachments={attachments} demo={demo} />
 
       <footer className="mt-10 border-t border-base-300 pt-6 text-sm text-base-content/60">
         <p className="m-0">

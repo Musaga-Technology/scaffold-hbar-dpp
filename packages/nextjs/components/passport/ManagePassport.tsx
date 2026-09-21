@@ -70,8 +70,12 @@ export const ManagePassport = ({
 
   const [type, setType] = useState(eventTypes[0] ?? "product.shipped");
   const [payload, setPayload] = useState<Record<string, string>>({});
-  const [attachmentUrl, setAttachmentUrl] = useState("");
   const [logging, setLogging] = useState(false);
+
+  const [document, setDocument] = useState<File | undefined>();
+  const [pinned, setPinned] = useState<
+    { cid: string; hash: string; name: string; type: string; bytes: number } | undefined
+  >();
 
   const [recipient, setRecipient] = useState("");
   const [transferring, setTransferring] = useState(false);
@@ -87,15 +91,33 @@ export const ManagePassport = ({
       const value = (payload[field.key] ?? "").trim();
       if (value !== "") body[field.key] = value;
     }
-    if (attachmentUrl.trim() !== "") body.attachmentUrl = attachmentUrl.trim();
-
-    if (Object.keys(body).length === 0) {
+    if (Object.keys(body).length === 0 && !document) {
       notification.error("Add at least one detail before logging an event.");
       return;
     }
 
     setLogging(true);
     try {
+      // Pin the document first. The CID and the sha256 the server computed from
+      // the bytes it actually received both go into the payload, where
+      // payloadHash covers them — so the reference cannot be swapped later
+      // without breaking the event's own hash.
+      let attachment = pinned;
+      if (document && !attachment) {
+        const form = new FormData();
+        form.append("file", document);
+        const upload = await fetch("/api/passport/attachments", { method: "POST", body: form });
+        const uploaded = await upload.json();
+
+        if (!upload.ok) {
+          notification.error(uploaded.message ?? "Could not store the document.");
+          return;
+        }
+        attachment = uploaded.attachment;
+        setPinned(attachment);
+      }
+      if (attachment) body.attachments = [attachment];
+
       const response = await fetch("/api/passport/events", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -112,7 +134,8 @@ export const ManagePassport = ({
         `Logged ${type} (${result.bytes} bytes). It appears on the passport once the indexer catches up.`,
       );
       setPayload({});
-      setAttachmentUrl("");
+      setDocument(undefined);
+      setPinned(undefined);
     } catch (error) {
       notification.error(error instanceof Error ? error.message : "Could not submit the event.");
     } finally {
@@ -222,20 +245,26 @@ export const ManagePassport = ({
           ))}
 
           <div className="form-control w-full">
-            <label className="label pb-1" htmlFor="attachment">
-              <span className="label-text">Attachment URL (optional)</span>
+            <label className="label pb-1" htmlFor="document">
+              <span className="label-text">Attach a document (optional)</span>
             </label>
             <input
-              id="attachment"
-              className="input input-bordered"
-              placeholder="https://…/certificate.pdf"
-              value={attachmentUrl}
+              id="document"
+              type="file"
+              className="file-input file-input-bordered w-full"
               disabled={logging}
-              onChange={changed => setAttachmentUrl(changed.target.value)}
+              onChange={changed => {
+                setDocument(changed.target.files?.[0]);
+                // A new file invalidates any CID pinned for the previous one.
+                setPinned(undefined);
+              }}
             />
             <span className="mt-1 text-xs text-base-content/60">
-              The URL is recorded, never the file. Documents do not go on HCS.
+              Pinned to IPFS and referenced by CID. The document never goes on HCS — the event carries its content
+              address and a sha256 of the bytes, and the indexer fetches it back to confirm it is still the document
+              that was attested.
             </span>
+            {pinned && <span className="mt-1 break-all font-mono text-xs text-success">pinned {pinned.cid}</span>}
           </div>
         </div>
 

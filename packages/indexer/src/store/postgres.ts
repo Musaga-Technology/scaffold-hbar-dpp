@@ -15,6 +15,8 @@
 import { Pool } from "pg";
 
 import type {
+  AttachmentRow,
+  NewAttachmentRow,
   EventRow,
   NewEventRow,
   NewNftTransferRow,
@@ -23,7 +25,7 @@ import type {
   ProductRow,
   ProductStatus,
 } from "./schema.js";
-import type { EventVerdict, IndexStats, IndexStore, PassportView } from "./types.js";
+import type { AttachmentVerdict, EventVerdict, IndexStats, IndexStore, PassportView } from "./types.js";
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS products (
@@ -81,6 +83,22 @@ CREATE TABLE IF NOT EXISTS nft_transfers (
   PRIMARY KEY (token_id, serial, consensus_timestamp)
 );
 CREATE INDEX IF NOT EXISTS nft_transfers_serial_idx ON nft_transfers (token_id, serial);
+
+CREATE TABLE IF NOT EXISTS attachments (
+  topic_id TEXT NOT NULL,
+  sequence_number BIGINT NOT NULL,
+  cid TEXT NOT NULL,
+  declared_hash TEXT NOT NULL,
+  name TEXT,
+  media_type TEXT,
+  observed_hash TEXT,
+  bytes BIGINT,
+  state TEXT NOT NULL DEFAULT 'pending',
+  note TEXT,
+  checked_at TEXT,
+  PRIMARY KEY (topic_id, sequence_number, cid)
+);
+CREATE INDEX IF NOT EXISTS attachments_state_idx ON attachments (state);
 `;
 
 /** Maps a products row from snake_case columns to the shared row type. */
@@ -118,6 +136,22 @@ function toEvent(row: Record<string, unknown>): EventRow {
     rawHash: (row.raw_hash as string) ?? null,
     reconciliation: row.reconciliation as EventRow["reconciliation"],
     reconciliationNote: (row.reconciliation_note as string) ?? null,
+  };
+}
+
+function toAttachment(row: Record<string, unknown>): AttachmentRow {
+  return {
+    topicId: row.topic_id as string,
+    sequenceNumber: Number(row.sequence_number),
+    cid: row.cid as string,
+    declaredHash: row.declared_hash as string,
+    name: (row.name as string) ?? null,
+    mediaType: (row.media_type as string) ?? null,
+    observedHash: (row.observed_hash as string) ?? null,
+    bytes: row.bytes === null || row.bytes === undefined ? null : Number(row.bytes),
+    state: row.state as AttachmentRow["state"],
+    note: (row.note as string) ?? null,
+    checkedAt: (row.checked_at as string) ?? null,
   };
 }
 
@@ -307,6 +341,87 @@ export class PostgresIndexStore implements IndexStore {
     return rows.map(toTransfer);
   }
 
+  async upsertAttachment(attachment: NewAttachmentRow): Promise<void> {
+    // A re-poll re-declares the reference but must not discard a verdict the
+    // verifier already reached, so state/note/observed_hash are left alone.
+    await this.pool.query(
+      `INSERT INTO attachments (topic_id, sequence_number, cid, declared_hash, name, media_type, bytes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (topic_id, sequence_number, cid) DO UPDATE SET
+         declared_hash = EXCLUDED.declared_hash,
+         name = COALESCE(EXCLUDED.name, attachments.name),
+         media_type = COALESCE(EXCLUDED.media_type, attachments.media_type),
+         bytes = COALESCE(EXCLUDED.bytes, attachments.bytes)`,
+      [
+        attachment.topicId,
+        attachment.sequenceNumber,
+        attachment.cid,
+        attachment.declaredHash,
+        attachment.name ?? null,
+        attachment.mediaType ?? null,
+        attachment.bytes ?? null,
+      ],
+    );
+  }
+
+  async listAttachments(serial: number): Promise<AttachmentRow[]> {
+    const { rows } = await this.pool.query(
+      `SELECT a.* FROM attachments a
+         JOIN events e ON e.topic_id = a.topic_id AND e.sequence_number = a.sequence_number
+        WHERE e.serial = $1
+        ORDER BY a.sequence_number ASC, a.cid ASC`,
+      [serial],
+    );
+    return rows.map(toAttachment);
+  }
+
+  async listAttachmentsByEvent(topicId: string, sequenceNumber: number): Promise<AttachmentRow[]> {
+    const { rows } = await this.pool.query(
+      "SELECT * FROM attachments WHERE topic_id = $1 AND sequence_number = $2 ORDER BY cid ASC",
+      [topicId, sequenceNumber],
+    );
+    return rows.map(toAttachment);
+  }
+
+  async listAllAttachments(): Promise<AttachmentRow[]> {
+    const { rows } = await this.pool.query(
+      "SELECT * FROM attachments ORDER BY topic_id ASC, sequence_number ASC, cid ASC",
+    );
+    return rows.map(toAttachment);
+  }
+
+  async recordAttachmentVerdicts(verdicts: readonly AttachmentVerdict[]): Promise<void> {
+    if (verdicts.length === 0) return;
+    const checkedAt = new Date().toISOString();
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const verdict of verdicts) {
+        await client.query(
+          `UPDATE attachments SET state = $4, observed_hash = $5, bytes = COALESCE($6, bytes),
+                                  note = $7, checked_at = $8
+            WHERE topic_id = $1 AND sequence_number = $2 AND cid = $3`,
+          [
+            verdict.topicId,
+            verdict.sequenceNumber,
+            verdict.cid,
+            verdict.state,
+            verdict.observedHash ?? null,
+            verdict.bytes ?? null,
+            verdict.note ?? null,
+            checkedAt,
+          ],
+        );
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async getCursor(topicId: string): Promise<number> {
     const { rows } = await this.pool.query("SELECT last_sequence_number FROM cursors WHERE topic_id = $1", [topicId]);
     return rows[0] ? Number(rows[0].last_sequence_number) : 0;
@@ -336,6 +451,7 @@ export class PostgresIndexStore implements IndexStore {
       product,
       events: await this.listEvents(serial),
       transfers: await this.listTransfers(product.tokenId, serial),
+      attachments: await this.listAttachments(serial),
     };
   }
 
@@ -347,7 +463,10 @@ export class PostgresIndexStore implements IndexStore {
         (SELECT COUNT(*) FROM products WHERE status = 'verified') AS verified,
         (SELECT COUNT(*) FROM products WHERE status = 'pending') AS pending,
         (SELECT COUNT(*) FROM products WHERE status = 'discrepancy') AS discrepancies,
-        (SELECT COUNT(DISTINCT topic_id) FROM products) AS topics
+        (SELECT COUNT(DISTINCT topic_id) FROM products) AS topics,
+        (SELECT COUNT(*) FROM attachments) AS attachments,
+        (SELECT COUNT(*) FROM attachments WHERE state = 'verified') AS attachments_verified,
+        (SELECT COUNT(*) FROM attachments WHERE state IN ('mismatch','unreachable')) AS attachments_failed
     `);
     const row = rows[0] ?? {};
     return {
@@ -357,11 +476,14 @@ export class PostgresIndexStore implements IndexStore {
       pending: Number(row.pending ?? 0),
       discrepancies: Number(row.discrepancies ?? 0),
       topics: Number(row.topics ?? 0),
+      attachments: Number(row.attachments ?? 0),
+      attachmentsVerified: Number(row.attachments_verified ?? 0),
+      attachmentsFailed: Number(row.attachments_failed ?? 0),
     };
   }
 
   async reset(): Promise<void> {
-    await this.pool.query("TRUNCATE events, products, cursors, nft_transfers RESTART IDENTITY");
+    await this.pool.query("TRUNCATE events, products, cursors, nft_transfers, attachments RESTART IDENTITY");
   }
 
   async close(): Promise<void> {

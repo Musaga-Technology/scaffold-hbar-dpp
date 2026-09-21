@@ -15,6 +15,7 @@ export type ErrorCode =
   | "message_too_large"
   | "embedded_content"
   | "index_unavailable"
+  | "storage_unavailable"
   | "internal";
 
 export interface ErrorBody {
@@ -30,6 +31,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   message_too_large: 413,
   embedded_content: 422,
   index_unavailable: 503,
+  storage_unavailable: 503,
   internal: 500,
 };
 

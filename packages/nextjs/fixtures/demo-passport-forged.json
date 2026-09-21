@@ -11,7 +11,7 @@
     "metadataJson": "{\"batteryCategory\":\"LMT\",\"category\":\"battery\",\"chemistry\":\"NMC\",\"manufacturedAt\":\"2026-07-20\",\"manufacturer\":\"Northwind Cells\",\"name\":\"PowerCell 48 kWh LMT Pack\",\"originCountry\":\"PL\",\"ratedCapacityKwh\":48}",
     "currentHolder": "0.0.1111111111",
     "status": "discrepancy",
-    "lastReconciledAt": "2026-09-15T21:30:52.228Z"
+    "lastReconciledAt": "2026-09-18T16:36:14.557Z"
   },
   "events": [
     {
@@ -69,6 +69,36 @@
       "id": 8,
       "topicId": "0.0.7777777777",
       "sequenceNumber": 3,
+      "consensusTimestamp": "1789984890.000000000",
+      "serial": 2,
+      "tokenId": "0.0.5555555555",
+      "type": "product.inspected",
+      "actor": "0.0.1111111111",
+      "payloadJson": "{\"attachments\":[{\"cid\":\"bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku\",\"hash\":\"1f8fb4ec3c2dcb8508e089cdbbc9e65b62c78b5b92d171e835bdbd3e5b4ad22b\",\"name\":\"test-report.txt\",\"type\":\"text/plain\"}],\"inspector\":\"In-house QA\",\"result\":\"pass\"}",
+      "payloadHash": "800ec5367ef3794a1f14d00dc9de68b68a6f39618723fb71871396c084f45c11",
+      "ref": null,
+      "hashValid": true,
+      "malformedReason": null,
+      "rawHash": null,
+      "reconciliation": "n/a",
+      "reconciliationNote": null,
+      "payload": {
+        "attachments": [
+          {
+            "cid": "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+            "hash": "1f8fb4ec3c2dcb8508e089cdbbc9e65b62c78b5b92d171e835bdbd3e5b4ad22b",
+            "name": "test-report.txt",
+            "type": "text/plain"
+          }
+        ],
+        "inspector": "In-house QA",
+        "result": "pass"
+      }
+    },
+    {
+      "id": 9,
+      "topicId": "0.0.7777777777",
+      "sequenceNumber": 4,
       "consensusTimestamp": "1789984920.000000000",
       "serial": 2,
       "tokenId": "0.0.5555555555",
@@ -98,6 +128,21 @@
       "receiver": "0.0.1111111111",
       "transactionId": "0.0.1111111111@1789984800.000000000",
       "isMint": true
+    }
+  ],
+  "attachments": [
+    {
+      "topicId": "0.0.7777777777",
+      "sequenceNumber": 3,
+      "cid": "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+      "declaredHash": "1f8fb4ec3c2dcb8508e089cdbbc9e65b62c78b5b92d171e835bdbd3e5b4ad22b",
+      "name": "test-report.txt",
+      "mediaType": "text/plain",
+      "observedHash": "d49cc9f13c3c8c2bd81171eb5e364d16316445a23df7c54574809f39147c2797",
+      "bytes": 71,
+      "state": "mismatch",
+      "note": "The document at this address does not match the hash committed on HCS. Declared 1f8fb4ec3c2dcb85…, found d49cc9f13c3c8c2b…. It has been replaced since it was attested.",
+      "checkedAt": "2026-09-18T16:36:14.546Z"
     }
   ]
 }

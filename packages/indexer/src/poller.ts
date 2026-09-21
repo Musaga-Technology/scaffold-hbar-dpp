@@ -8,6 +8,7 @@
  * as an incremental run.
  */
 import { canonicalize, decodeBase64Event, reassemble, type MirrorTopicMessage } from "./events/index.js";
+import { recordAttachments } from "./attachments.js";
 import type { MirrorNodeClient } from "./mirror.js";
 import type { IndexStore, NewEventRow } from "./store/index.js";
 
@@ -24,6 +25,8 @@ export interface PollResult {
   cursor: number;
   /** Chunk sets still waiting for parts, carried to the next pass. */
   incomplete: number;
+  /** Attachment references recorded this pass. */
+  attachments: number;
 }
 
 /** Fields worth lifting out of a `product.registered` payload into the product row. */
@@ -53,7 +56,11 @@ function toEventRow(
   sequenceNumber: number,
   consensusTimestamp: string,
   raw: string,
-): { row: NewEventRow; registration?: { serial: number; tokenId: string; facts: RegistrationFacts } } {
+): {
+  row: NewEventRow;
+  registration?: { serial: number; tokenId: string; facts: RegistrationFacts };
+  payload?: Record<string, unknown>;
+} {
   const decoded = decodeBase64Event(Buffer.from(raw, "utf8").toString("base64"));
 
   if (!decoded.ok) {
@@ -92,6 +99,7 @@ function toEventRow(
 
   return {
     row,
+    payload: event.payload,
     registration:
       event.type === "product.registered"
         ? { serial: event.serial, tokenId: event.tokenId, facts: readRegistration(event.payload) }
@@ -114,14 +122,27 @@ export async function pollTopic(store: IndexStore, mirror: MirrorNodeClient, top
 
   let written = 0;
   let malformed = 0;
+  let attachmentsFound = 0;
   let highest = cursor;
 
   for (const message of complete) {
-    const { row, registration } = toEventRow(topicId, message.sequenceNumber, message.consensusTimestamp, message.raw);
+    const { row, registration, payload } = toEventRow(
+      topicId,
+      message.sequenceNumber,
+      message.consensusTimestamp,
+      message.raw,
+    );
 
     await store.upsertEvent(row);
     written += 1;
     if (row.malformedReason) malformed += 1;
+
+    // The reference is a fact about the log and goes in immediately. Whether
+    // the document behind it is genuine takes a network round trip, and is
+    // decided separately by the verification pass.
+    if (payload) {
+      attachmentsFound += (await recordAttachments(store, topicId, message.sequenceNumber, payload)).length;
+    }
 
     if (registration) {
       await store.upsertProduct({
@@ -151,6 +172,7 @@ export async function pollTopic(store: IndexStore, mirror: MirrorNodeClient, top
     malformed,
     cursor: incompleteKeys.length === 0 ? highest : cursor,
     incomplete: incompleteKeys.length,
+    attachments: attachmentsFound,
   };
 }
 

@@ -11,9 +11,11 @@ import Database from "better-sqlite3";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 
-import { cursors, events, nftTransfers, products } from "./schema.js";
-import type { EventVerdict, IndexStats, IndexStore, PassportView } from "./types.js";
+import { attachments, cursors, events, nftTransfers, products } from "./schema.js";
+import type { AttachmentVerdict, EventVerdict, IndexStats, IndexStore, PassportView } from "./types.js";
 import type {
+  AttachmentRow,
+  NewAttachmentRow,
   EventRow,
   NewEventRow,
   NewNftTransferRow,
@@ -87,6 +89,22 @@ CREATE TABLE IF NOT EXISTS nft_transfers (
   PRIMARY KEY (token_id, serial, consensus_timestamp)
 );
 CREATE INDEX IF NOT EXISTS nft_transfers_serial_idx ON nft_transfers (token_id, serial);
+
+CREATE TABLE IF NOT EXISTS attachments (
+  topic_id TEXT NOT NULL,
+  sequence_number INTEGER NOT NULL,
+  cid TEXT NOT NULL,
+  declared_hash TEXT NOT NULL,
+  name TEXT,
+  media_type TEXT,
+  observed_hash TEXT,
+  bytes INTEGER,
+  state TEXT NOT NULL DEFAULT 'pending',
+  note TEXT,
+  checked_at TEXT,
+  PRIMARY KEY (topic_id, sequence_number, cid)
+);
+CREATE INDEX IF NOT EXISTS attachments_state_idx ON attachments (state);
 `;
 
 export class SqliteIndexStore implements IndexStore {
@@ -209,6 +227,80 @@ export class SqliteIndexStore implements IndexStore {
       .all();
   }
 
+  async upsertAttachment(attachment: NewAttachmentRow): Promise<void> {
+    this.db
+      .insert(attachments)
+      .values(attachment)
+      .onConflictDoUpdate({
+        target: [attachments.topicId, attachments.sequenceNumber, attachments.cid],
+        // A re-poll re-declares the reference but must not discard a verdict the
+        // verifier already reached, so only the declared fields are refreshed.
+        set: Object.fromEntries(
+          Object.entries(attachment).filter(
+            ([key, value]) => value !== undefined && !["state", "note", "observedHash", "checkedAt"].includes(key),
+          ),
+        ),
+      })
+      .run();
+  }
+
+  async listAttachments(serial: number): Promise<AttachmentRow[]> {
+    const rows = this.db
+      .select({ attachment: attachments })
+      .from(attachments)
+      .innerJoin(
+        events,
+        and(eq(events.topicId, attachments.topicId), eq(events.sequenceNumber, attachments.sequenceNumber)),
+      )
+      .where(eq(events.serial, serial))
+      .orderBy(asc(attachments.sequenceNumber), asc(attachments.cid))
+      .all();
+    return rows.map(row => row.attachment);
+  }
+
+  async listAttachmentsByEvent(topicId: string, sequenceNumber: number): Promise<AttachmentRow[]> {
+    return this.db
+      .select()
+      .from(attachments)
+      .where(and(eq(attachments.topicId, topicId), eq(attachments.sequenceNumber, sequenceNumber)))
+      .orderBy(asc(attachments.cid))
+      .all();
+  }
+
+  async listAllAttachments(): Promise<AttachmentRow[]> {
+    return this.db
+      .select()
+      .from(attachments)
+      .orderBy(asc(attachments.topicId), asc(attachments.sequenceNumber), asc(attachments.cid))
+      .all();
+  }
+
+  async recordAttachmentVerdicts(verdicts: readonly AttachmentVerdict[]): Promise<void> {
+    if (verdicts.length === 0) return;
+    const checkedAt = new Date().toISOString();
+    this.sqlite.transaction(() => {
+      for (const verdict of verdicts) {
+        this.db
+          .update(attachments)
+          .set({
+            state: verdict.state,
+            observedHash: verdict.observedHash ?? null,
+            bytes: verdict.bytes ?? null,
+            note: verdict.note ?? null,
+            checkedAt,
+          })
+          .where(
+            and(
+              eq(attachments.topicId, verdict.topicId),
+              eq(attachments.sequenceNumber, verdict.sequenceNumber),
+              eq(attachments.cid, verdict.cid),
+            ),
+          )
+          .run();
+      }
+    })();
+  }
+
   async getCursor(topicId: string): Promise<number> {
     const row = this.db.select().from(cursors).where(eq(cursors.topicId, topicId)).get();
     return row?.lastSequenceNumber ?? 0;
@@ -240,6 +332,7 @@ export class SqliteIndexStore implements IndexStore {
       product,
       events: await this.listEvents(serial),
       transfers: await this.listTransfers(product.tokenId, serial),
+      attachments: await this.listAttachments(serial),
     };
   }
 
@@ -249,9 +342,20 @@ export class SqliteIndexStore implements IndexStore {
       return (where ? query.where(where) : query).get()?.value ?? 0;
     };
 
+    const attachmentCount = (where?: ReturnType<typeof eq>) => {
+      const query = this.db.select({ value: sql<number>`count(*)` }).from(attachments);
+      return (where ? query.where(where) : query).get()?.value ?? 0;
+    };
+
     return {
       products: countOf(products),
       events: countOf(events),
+      attachments: attachmentCount(),
+      attachmentsVerified: attachmentCount(eq(attachments.state, "verified")),
+      // A document that cannot be fetched is as much a finding as one that has
+      // been swapped: either way the passport cannot back its own claim.
+      attachmentsFailed:
+        attachmentCount(eq(attachments.state, "mismatch")) + attachmentCount(eq(attachments.state, "unreachable")),
       verified: countOf(products, eq(products.status, "verified")),
       pending: countOf(products, eq(products.status, "pending")),
       discrepancies: countOf(products, eq(products.status, "discrepancy")),
@@ -269,6 +373,7 @@ export class SqliteIndexStore implements IndexStore {
       DELETE FROM products;
       DELETE FROM cursors;
       DELETE FROM nft_transfers;
+      DELETE FROM attachments;
     `);
   }
 

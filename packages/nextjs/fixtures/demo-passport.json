@@ -11,7 +11,7 @@
     "metadataJson": "{\"batteryCategory\":\"EV\",\"category\":\"battery\",\"chemistry\":\"LFP\",\"manufacturedAt\":\"2026-07-14\",\"manufacturer\":\"Northwind Cells\",\"name\":\"PowerCell 72 kWh EV Pack\",\"originCountry\":\"PL\",\"ratedCapacityKwh\":72}",
     "currentHolder": "0.0.3333333333",
     "status": "verified",
-    "lastReconciledAt": "2026-09-15T21:30:52.225Z"
+    "lastReconciledAt": "2026-09-18T16:36:14.555Z"
   },
   "events": [
     {
@@ -98,8 +98,8 @@
       "tokenId": "0.0.5555555555",
       "type": "product.inspected",
       "actor": "0.0.2222222222",
-      "payloadJson": "{\"inspector\":\"TUV Rheinland\",\"note\":\"State of health 100%.\",\"result\":\"pass\"}",
-      "payloadHash": "6f4523a112dc69580f25f9ef8837e3d518604657401c9ecf507c41bcf2647ee0",
+      "payloadJson": "{\"attachments\":[{\"cid\":\"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi\",\"hash\":\"992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81\",\"name\":\"conformity-certificate.txt\",\"type\":\"text/plain\"}],\"inspector\":\"TUV Rheinland\",\"result\":\"pass\"}",
+      "payloadHash": "501d03cc495f394174a93fc89cc34abb676acbdce8d208a545c2dc80a8389cfd",
       "ref": null,
       "hashValid": true,
       "malformedReason": null,
@@ -107,8 +107,15 @@
       "reconciliation": "n/a",
       "reconciliationNote": null,
       "payload": {
+        "attachments": [
+          {
+            "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+            "hash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
+            "name": "conformity-certificate.txt",
+            "type": "text/plain"
+          }
+        ],
         "inspector": "TUV Rheinland",
-        "note": "State of health 100%.",
         "result": "pass"
       }
     },
@@ -163,6 +170,21 @@
       "receiver": "0.0.3333333333",
       "transactionId": "0.0.2222222222@1789985040.000000000",
       "isMint": false
+    }
+  ],
+  "attachments": [
+    {
+      "topicId": "0.0.6666666666",
+      "sequenceNumber": 4,
+      "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+      "declaredHash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
+      "name": "conformity-certificate.txt",
+      "mediaType": "text/plain",
+      "observedHash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
+      "bytes": 95,
+      "state": "verified",
+      "note": null,
+      "checkedAt": "2026-09-18T16:36:14.546Z"
     }
   ]
 }
