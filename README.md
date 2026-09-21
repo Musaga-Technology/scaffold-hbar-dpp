@@ -5,7 +5,7 @@ A scaffold-hbar template that gives any team a working Digital Product Passport 
 Every physical product — a battery, a garment, a pallet of coffee, a pharmaceutical lot — gets an HTS non-fungible token as its identity, an HCS topic as its ordered lifecycle log, and a public page anyone can verify by scanning a QR code.
 
 ```bash
-npm create scaffold-hbar@latest my-passports -- --template <your-org>/scaffold-hbar-product-passport
+npm create scaffold-hbar@latest my-passports -- --template Musaga-Technology/scaffold-hbar-dpp
 ```
 
 ## Why this template
