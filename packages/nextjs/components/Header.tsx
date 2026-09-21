@@ -4,7 +4,7 @@ import React, { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, BugAntIcon, BuildingStorefrontIcon, QrCodeIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-hbar";
 import { useOutsideClick } from "~~/hooks/scaffold-hbar";
 
@@ -14,14 +14,26 @@ type HeaderMenuLink = {
   icon?: React.ReactNode;
 };
 
-/**
- * Navigation entries. The issuer, my-passports and verify routes are added in
- * increment 03 alongside the pages themselves, so every link here resolves.
- */
+/** Navigation entries. Every link here resolves to a page that exists. */
 export const menuLinks: HeaderMenuLink[] = [
   {
     label: "Home",
     href: "/",
+  },
+  {
+    label: "Verify",
+    href: "/verify/1",
+    icon: <QrCodeIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Issuer",
+    href: "/issuer",
+    icon: <BuildingStorefrontIcon className="h-4 w-4" />,
+  },
+  {
+    label: "My Passports",
+    href: "/my-passports",
+    icon: <WalletIcon className="h-4 w-4" />,
   },
   {
     label: "Debug Contracts",

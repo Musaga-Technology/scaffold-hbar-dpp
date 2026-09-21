@@ -1,40 +1,18 @@
 /**
- * Canonical JSON and hashing for passport events.
+ * Hashing for passport events.
  *
- * This is the reference implementation. Its behaviour is pinned by
- * `schemas/event-vectors.json`, which every other implementation in this repo
- * asserts against — see `packages/hardhat/test/events.conformance.test.ts`.
- * If you change anything here, the vectors change too, and old payload hashes
- * stop verifying. That is a breaking change to the event schema, not a refactor.
+ * The canonicaliser lives in `canonicalize.ts`, which has no Node imports so the
+ * browser can use it too. This module adds the digest, which uses node:crypto
+ * and is therefore server-side only.
+ *
+ * Behaviour is pinned by `schemas/event-vectors.json`. If you change any of it,
+ * the vectors change too and every payload hash already written to a topic stops
+ * verifying — that is a breaking schema change, not a refactor.
  */
 import { createHash } from "node:crypto";
 
-/**
- * Serializes a value with object keys sorted and no insignificant whitespace,
- * so the same logical payload always produces the same bytes.
- *
- * `undefined` properties are dropped rather than serialized, matching what
- * `JSON.stringify` does for objects, so an explicitly-absent field and a missing
- * field hash identically.
- *
- * @param value Value to serialize.
- * @returns Canonical JSON text.
- */
-export function canonicalize(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value) ?? "null";
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalize).join(",")}]`;
-  }
-
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, entryValue]) => entryValue !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalize(entryValue)}`);
-
-  return `{${entries.join(",")}}`;
-}
+export { canonicalize } from "./canonicalize.js";
+import { canonicalize } from "./canonicalize.js";
 
 /**
  * Returns the lowercase hex sha256 of a UTF-8 string.

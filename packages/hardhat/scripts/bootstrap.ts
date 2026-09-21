@@ -226,9 +226,9 @@ async function main(): Promise<void> {
 
     if (state.serial === undefined) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      // The serial is not known until the mint returns, so the metadata URL is
-      // built for serial 1 — the first product a fresh registry ever mints.
-      const metadata = hre.ethers.toUtf8Bytes(demoMetadataUrl(appUrl, 1));
+      // Keyed by topic, because the serial does not exist until this mint
+      // returns and the metadata bytes are an argument to it.
+      const metadata = hre.ethers.toUtf8Bytes(demoMetadataUrl(appUrl, state.topicId!));
       const productHash = `0x${demoProductHash()}`;
 
       const tx = await registry.registerProduct(metadata, productHash, state.topicId, { gasLimit: 1_500_000 });

@@ -34,15 +34,19 @@ export function demoProductHash(): string {
 /**
  * Builds the HIP-412 metadata bytes stored on the serial.
  *
+ * Keyed by topic id, not serial. The metadata URL has to be chosen before the
+ * mint that assigns the serial, so keying it by serial would mean guessing. The
+ * topic is created first and identifies the product just as uniquely.
+ *
  * Only a pointer goes on-chain — the registry caps this at 100 bytes. The full
  * HIP-412 document is served by the app at the referenced URL.
  *
  * @param baseUrl Public base URL of the app, without a trailing slash.
- * @param serial Serial the metadata describes.
+ * @param topicId Topic carrying the product's lifecycle log.
  * @returns The metadata URL.
  */
-export function demoMetadataUrl(baseUrl: string, serial: number): string {
-  return `${baseUrl.replace(/\/+$/, "")}/api/passport/metadata/${serial}`;
+export function demoMetadataUrl(baseUrl: string, topicId: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/api/passport/metadata/${topicId}`;
 }
 
 /** Demo lifecycle events submitted after registration, in order. */

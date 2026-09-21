@@ -17,7 +17,9 @@ interface CreateTopicRequest {
  * key can, and that holder is this route.
  *
  * The memo carries `passport:{tokenId}:{serial}` so a topic found on HashScan
- * can be traced back to its product without consulting the index.
+ * can be traced back to its product without consulting the index. During
+ * registration the serial is not yet known — the mint that assigns it needs this
+ * topic id as an argument — so the memo reads `:pending` until then.
  */
 export async function POST(request: Request) {
   return guard(async () => {
@@ -32,8 +34,11 @@ export async function POST(request: Request) {
     if (typeof body.tokenId !== "string" || !/^\d+\.\d+\.\d+$/.test(body.tokenId)) {
       issues.push({ field: "tokenId", message: "must look like 0.0.x" });
     }
-    if (!Number.isInteger(body.serial) || (body.serial as number) < 1) {
-      issues.push({ field: "serial", message: "must be a positive integer" });
+    // The serial is optional by necessity, not convenience: registerProduct
+    // takes the topic id as an argument, so the topic has to exist before the
+    // mint that assigns the serial. Callers that already know it pass it.
+    if (body.serial !== undefined && (!Number.isInteger(body.serial) || (body.serial as number) < 1)) {
+      issues.push({ field: "serial", message: "must be a positive integer when present" });
     }
     if (issues.length > 0) {
       return fail("invalid_request", "Cannot create a topic from this request.", issues);
@@ -53,7 +58,7 @@ export async function POST(request: Request) {
     try {
       const receipt = await (
         await new TopicCreateTransaction()
-          .setTopicMemo(`passport:${body.tokenId}:${body.serial}`)
+          .setTopicMemo(`passport:${body.tokenId}:${body.serial ?? "pending"}`)
           .setSubmitKey(operator.privateKey.publicKey)
           .execute(client)
       ).getReceipt(client);
