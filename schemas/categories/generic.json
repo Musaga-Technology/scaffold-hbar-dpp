@@ -1,0 +1,14 @@
+{
+  "id": "generic",
+  "label": "Generic product",
+  "description": "Minimal category usable for any physical item.",
+  "fields": [
+    { "key": "name", "label": "Product name", "type": "string", "required": true, "maxLength": 80 },
+    { "key": "manufacturer", "label": "Manufacturer", "type": "string", "required": true, "maxLength": 80 },
+    { "key": "gtin", "label": "GTIN (optional, enables GS1 Digital Link QR)", "type": "string", "pattern": "^\\d{8}(\\d{4,6})?$" },
+    { "key": "manufacturedAt", "label": "Manufactured on", "type": "date", "required": true },
+    { "key": "originCountry", "label": "Country of origin", "type": "string", "pattern": "^[A-Z]{2}$" }
+  ],
+  "display": { "title": "name", "subtitle": "manufacturer", "highlights": ["originCountry", "manufacturedAt"] },
+  "eventTypes": ["product.shipped", "custody.transferred", "product.inspected", "product.repaired", "product.recycled"]
+}

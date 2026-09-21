@@ -1,0 +1,127 @@
+{
+  "name": "product-passport-static",
+  "description": "Structural and text invariants for the product-passport scaffold-hbar template. Note: the harness supports only `contains` text needles; terminology rules (no \"HBARs\", lowercase network names, no @hashgraph/sdk) are enforced by the AGENTS.md invariants and a `yarn lint:terms` script the template should add.",
+  "jsonAssertions": [
+    {
+      "file": "package.json",
+      "path": "packageManager",
+      "equals": "yarn@3.2.3"
+    },
+    {
+      "file": "template.json",
+      "path": "name",
+      "equals": "product-passport"
+    },
+    {
+      "file": "template.json",
+      "path": "create-scaffold-hbar.defaults.frontend",
+      "equals": "nextjs-app"
+    },
+    {
+      "file": "template.json",
+      "path": "create-scaffold-hbar.defaults.solidityFramework",
+      "equals": "hardhat"
+    },
+    {
+      "file": "template.json",
+      "path": "create-scaffold-hbar.defaults.packageManager",
+      "equals": "yarn"
+    }
+  ],
+  "fileAssertions": {
+    "required": [
+      "README.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "LICENSE",
+      "template.json",
+      "package.json",
+      "packages/hardhat/package.json",
+      "packages/nextjs/package.json",
+      "packages/indexer/package.json",
+      "packages/hardhat/.env.example",
+      "packages/nextjs/.env.example",
+      "packages/indexer/.env.example",
+      "schemas/README.md",
+      "schemas/passport-event.schema.json",
+      "packages/hardhat/contracts/PassportRegistry.sol",
+      "packages/hardhat/test/PassportRegistry.test.ts",
+      "packages/indexer/src/reconcile.ts",
+      "packages/nextjs/app/verify/[serial]/page.tsx",
+      ".harness/spec.yaml",
+      "packages/hardhat/scripts/status.ts",
+      "packages/indexer/Dockerfile",
+      "docker-compose.yml"
+    ],
+    "forbidden": [
+      ".env",
+      "packages/nextjs/.env",
+      "packages/hardhat/.env",
+      "packages/indexer/.env",
+      "packages/foundry",
+      "packages/nextjs/app/api/hedera/submit-message",
+      "pnpm-lock.yaml",
+      "package-lock.json"
+    ]
+  },
+  "textAssertions": [
+    {
+      "file": "README.md",
+      "contains": [
+        "yarn install",
+        "yarn next:start",
+        "yarn passport:bootstrap",
+        "yarn indexer:dev",
+        "yarn indexer:verify",
+        "/verify/",
+        "HCS",
+        "mirror node",
+        "yarn passport:status",
+        "Deploy with Vercel",
+        "docker compose"
+      ]
+    },
+    {
+      "file": "AGENTS.md",
+      "contains": [
+        "passport-event.schema.json",
+        "schemas/categories",
+        "reconcil",
+        "never",
+        "yarn lint",
+        "yarn next:build"
+      ]
+    },
+    {
+      "file": "packages/hardhat/contracts/PassportRegistry.sol",
+      "contains": [
+        "0x167",
+        "createNonFungibleToken",
+        "mintToken",
+        "registerProduct",
+        "transferCustody",
+        "ProductRegistered",
+        "CustodyTransferred"
+      ]
+    },
+    {
+      "file": "packages/indexer/src/reconcile.ts",
+      "contains": [
+        "discrepancy"
+      ]
+    },
+    {
+      "file": "packages/nextjs/package.json",
+      "contains": [
+        "@hiero-ledger/sdk"
+      ]
+    },
+    {
+      "file": "package.json",
+      "contains": [
+        "\"passport:bootstrap\"",
+        "\"passport:status\""
+      ]
+    }
+  ]
+}

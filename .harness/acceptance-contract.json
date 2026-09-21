@@ -1,0 +1,46 @@
+{
+  "name": "product-passport-acceptance",
+  "description": "Numbered, browser-verifiable assertions graded by the Tier 3 validator. Few, critical, embarrassing-if-failed.",
+  "assertions": [
+    {
+      "id": "C1", "severity": "critical", "walletRequired": false, "verifiableWithoutCredentials": true,
+      "statement": "The public verify page renders a passport with an ordered lifecycle timeline without any wallet or env configuration.",
+      "howToVerify": "Open /verify/1. Confirm the page shows a product name, category, HTS token id + serial, HCS topic id, and at least 3 timeline entries each with an event type and a consensus timestamp. Confirm a banner or label indicates demo/fixture data when no registry is configured."
+    },
+    {
+      "id": "C2", "severity": "critical", "walletRequired": false, "verifiableWithoutCredentials": true,
+      "statement": "Every timeline entry links to HashScan for its underlying Hedera artifact.",
+      "howToVerify": "On /verify/1, for at least two timeline entries find an anchor whose href starts with https://hashscan.io/testnet/ (topic message, transaction, or NFT serial). Fail if any entry lacks a link."
+    },
+    {
+      "id": "C3", "severity": "critical", "walletRequired": false, "verifiableWithoutCredentials": true,
+      "statement": "A verification status is shown and a custody event that does not match on-chain NFT custody is surfaced as a discrepancy.",
+      "howToVerify": "Open /verify/1 and confirm a status badge reading verified. Open /verify/2 (the bundled forged-custody fixture) and confirm the status reads discrepancy and the offending event is visibly flagged with an explanation."
+    },
+    {
+      "id": "C4", "severity": "major", "walletRequired": false, "verifiableWithoutCredentials": true,
+      "statement": "The verify page exposes a scannable QR that resolves to the same passport.",
+      "howToVerify": "On /verify/1 locate a QR image/canvas. Confirm the adjacent text URL contains /verify/1 or a GS1 Digital Link path (/01/…/21/1). Navigating to that URL returns the same passport."
+    },
+    {
+      "id": "C5", "severity": "major", "walletRequired": true, "verifiableWithoutCredentials": false, "executableWithTestSigner": true,
+      "statement": "An issuer can register a product from the schema-driven form and receive a token id, serial and topic id.",
+      "howToVerify": "Connect the burner wallet on /issuer. Select category generic, fill required fields, submit. Wait for confirmation. Confirm the UI displays a serial number, an HTS token id (0.0.x), an HCS topic id (0.0.x) and a link to /verify/<serial>. Verify the topic exists via https://testnet.mirrornode.hedera.com/api/v1/topics/<topicId>/messages and contains a message of type product.registered."
+    },
+    {
+      "id": "C6", "severity": "major", "walletRequired": true, "verifiableWithoutCredentials": false, "executableWithTestSigner": true,
+      "statement": "Logging a lifecycle event appends a compact message to the product topic and it appears on the verify page after indexing.",
+      "howToVerify": "On /issuer/<serial> log an inspected event with a short note. Confirm success. Within 60 seconds reload /verify/<serial> and confirm the new event appears in the timeline with a HashScan link. Confirm via mirror node that the message payload is under 1024 bytes and contains payloadHash."
+    },
+    {
+      "id": "C7", "severity": "minor", "walletRequired": true, "verifiableWithoutCredentials": false,
+      "statement": "The holder's passports are listed on /my-passports.",
+      "howToVerify": "With the wallet that registered the product connected, open /my-passports and confirm the registered serial is listed with a link to its verify page."
+    },
+    {
+      "id": "C8", "severity": "minor", "walletRequired": false, "verifiableWithoutCredentials": true,
+      "statement": "The app never reads state directly from HCS in the browser; reads come from the index API.",
+      "howToVerify": "Open browser devtools network tab on /verify/1. Confirm requests go to /api/passport/* (or the configured INDEX_API_URL) and none go to mirrornode.hedera.com/api/v1/topics from the page itself."
+    }
+  ]
+}

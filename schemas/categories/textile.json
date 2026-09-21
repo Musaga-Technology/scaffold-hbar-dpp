@@ -1,0 +1,17 @@
+{
+  "id": "textile",
+  "label": "Textile / apparel (ESPR priority group)",
+  "description": "Illustrative fields for apparel passports under the ESPR working plan (delegated act expected ~2027).",
+  "fields": [
+    { "key": "name", "label": "Product name", "type": "string", "required": true, "maxLength": 80 },
+    { "key": "manufacturer", "label": "Brand / manufacturer", "type": "string", "required": true, "maxLength": 80 },
+    { "key": "gtin", "label": "GTIN", "type": "string", "pattern": "^\\d{8}(\\d{4,6})?$" },
+    { "key": "fibreComposition", "label": "Fibre composition", "type": "string", "required": true, "maxLength": 160 },
+    { "key": "recycledContentPct", "label": "Recycled content (%)", "type": "number", "minimum": 0, "maximum": 100 },
+    { "key": "manufacturedAt", "label": "Manufactured on", "type": "date", "required": true },
+    { "key": "originCountry", "label": "Country of origin", "type": "string", "pattern": "^[A-Z]{2}$" },
+    { "key": "careInstructionsUrl", "label": "Care / repair instructions URL", "type": "string", "format": "uri" }
+  ],
+  "display": { "title": "name", "subtitle": "manufacturer", "highlights": ["fibreComposition", "recycledContentPct", "originCountry"] },
+  "eventTypes": ["product.shipped", "custody.transferred", "product.inspected", "product.repaired", "product.recycled"]
+}

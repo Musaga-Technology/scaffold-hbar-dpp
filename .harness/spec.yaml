@@ -1,0 +1,115 @@
+schemaVersion: 2
+
+name: product-passport
+description: >
+  Provenance / Digital Product Passport template for scaffold-hbar: HTS NFT per
+  product minted via the HTS system contract, HCS topic per product as the
+  ordered lifecycle log, a mirror-node-fed indexer with deterministic replay and
+  custody reconciliation, and a Next.js issuer + public verify UI.
+
+agent: claude
+
+# Ordered increments; each gets its own attempt budget and checkpoint commits.
+prd:
+  - .harness/prds/01-foundation-contracts.md
+  - .harness/prds/02-hcs-events-and-indexer.md
+  - .harness/prds/03-ui-verify-issuer.md
+  - .harness/prds/04-consumer-airdrop-and-polish.md
+  # - .harness/prds/05-did-attestations.md   # stretch — enable only if 01–04 are green by 30 Sep
+
+maxAttempts: 3
+
+baseline:
+  commands:
+    - name: install
+      command: yarn install
+      timeoutMs: 600000
+    - name: compile
+      command: yarn hardhat:compile
+      timeoutMs: 300000
+    - name: build
+      command: yarn next:build
+      timeoutMs: 600000
+
+skills:
+  - hts-system-contract
+  - hss-system-contract
+  - hedera-token-service
+  - hedera-consensus-service
+  - project-scaffolding
+
+validators:
+  static: .harness/validators/static.json
+  commands: .harness/validators/yarn.json
+  playwright: .harness/validators/playwright-smoke.yaml   # Tier 2
+
+contract: .harness/acceptance-contract.json                # Tier 3
+validator:
+  enabled: true
+
+constraints:
+  packageManager: yarn@3.2.3
+  workspaces:
+    - packages/hardhat
+    - packages/nextjs
+    - packages/indexer
+
+forbiddenFiles:
+  - .env
+  - packages/nextjs/.env
+  - packages/hardhat/.env
+  - packages/indexer/.env
+  - packages/foundry
+
+secretScan:
+  failOnFiles:
+    - .env
+    - packages/nextjs/.env
+    - packages/hardhat/.env
+    - packages/indexer/.env
+  patterns:
+    - name: private-key-assignment
+      pattern: "(PRIVATE_KEY|OPERATOR_KEY|OPERATOR_PRIVATE_KEY)\\s*=\\s*(0x)?[0-9a-fA-F]{32,}"
+    - name: der-encoded-key
+      pattern: "302e020100300506032b657004220420[0-9a-fA-F]{64}"
+
+requiredFiles:
+  - template.json
+  - README.md
+  - AGENTS.md
+  - CLAUDE.md
+  - schemas/passport-event.schema.json
+  - schemas/categories/generic.json
+  - schemas/categories/battery.json
+  - packages/hardhat/contracts/PassportRegistry.sol
+  - packages/hardhat/contracts/interfaces/IHederaTokenService.sol
+  - packages/hardhat/contracts/test/MockHTS.sol
+  - packages/hardhat/scripts/bootstrap.ts
+  - packages/hardhat/scripts/status.ts
+  - packages/indexer/Dockerfile
+  - packages/indexer/package.json
+  - packages/indexer/src/index.ts
+  - packages/indexer/src/reconcile.ts
+  - packages/nextjs/app/verify/[serial]/page.tsx
+  - packages/nextjs/app/issuer/page.tsx
+  - packages/nextjs/app/my-passports/page.tsx
+  - packages/nextjs/fixtures/demo-passport.json
+
+# Tier 3.5 — enable on a host with a funded ECDSA testnet operator exported in the shell.
+# chainValidation:
+#   enabled: true
+#   network: testnet
+#   operator:
+#     accountIdEnv: HEDERA_OPERATOR_ID
+#     privateKeyEnv: HEDERA_OPERATOR_KEY
+#   fundingHbar: 25
+#   sweepBack: true
+#   expose:
+#     browserLocalStorageKey: burnerWallet.pk
+#     envVars: [DEPLOYER_PRIVATE_KEY]
+#   deploy:
+#     commands:
+#       - name: deploy-testnet
+#         command: yarn hardhat:deploy --network hederaTestnet
+#       - name: bootstrap
+#         command: yarn passport:bootstrap

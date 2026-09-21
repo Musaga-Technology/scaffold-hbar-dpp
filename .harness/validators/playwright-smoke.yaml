@@ -1,0 +1,31 @@
+# Tier 2 — thin boot gate: server up, route reachable, body rendered, no console errors,
+# no crash text. Rich UX checks live in acceptance-contract.json.
+name: product-passport-smoke
+server:
+  command: yarn next:start
+  url: http://localhost:3000
+  timeoutMs: 180000
+defaults:
+  timeoutMs: 60000
+  hydrationTimeoutMs: 60000
+  minBodyTextLength: 40
+  failOnConsoleError: true
+routes:
+  - name: home
+    path: /
+  - name: verify-demo
+    path: /verify/1
+  - name: verify-forged
+    path: /verify/2
+  - name: issuer
+    path: /issuer
+  - name: my-passports
+    path: /my-passports
+  - name: index-api-products
+    path: /api/passport/products
+forbidden:
+  visibleText:
+    - "Application error"
+    - "Unhandled Runtime Error"
+    - "Internal Server Error"
+    - "This page could not be found"

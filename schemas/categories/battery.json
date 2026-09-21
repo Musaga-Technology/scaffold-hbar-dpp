@@ -1,0 +1,20 @@
+{
+  "id": "battery",
+  "label": "Battery (EU Battery Regulation 2023/1542 passport subset)",
+  "description": "Fields aligned to the EU battery passport (mandatory from 18 Feb 2027 for EV, industrial >2 kWh and LMT batteries). Illustrative subset, not legal advice.",
+  "fields": [
+    { "key": "name", "label": "Model name", "type": "string", "required": true, "maxLength": 80 },
+    { "key": "manufacturer", "label": "Manufacturer", "type": "string", "required": true, "maxLength": 80 },
+    { "key": "gtin", "label": "GTIN", "type": "string", "pattern": "^\\d{8}(\\d{4,6})?$" },
+    { "key": "batteryCategory", "label": "Category", "type": "enum", "options": ["EV", "industrial", "LMT"], "required": true },
+    { "key": "chemistry", "label": "Cell chemistry", "type": "enum", "options": ["LFP", "NMC", "NCA", "LTO", "other"], "required": true },
+    { "key": "ratedCapacityKwh", "label": "Rated capacity (kWh)", "type": "number", "required": true, "minimum": 0 },
+    { "key": "carbonFootprintKgPerKwh", "label": "Carbon footprint (kg CO2e/kWh)", "type": "number", "minimum": 0 },
+    { "key": "recycledContentPct", "label": "Recycled content (%)", "type": "number", "minimum": 0, "maximum": 100 },
+    { "key": "manufacturedAt", "label": "Manufactured on", "type": "date", "required": true },
+    { "key": "manufacturingPlant", "label": "Manufacturing plant", "type": "string", "maxLength": 120 },
+    { "key": "originCountry", "label": "Country of origin", "type": "string", "pattern": "^[A-Z]{2}$" }
+  ],
+  "display": { "title": "name", "subtitle": "manufacturer", "highlights": ["batteryCategory", "chemistry", "ratedCapacityKwh", "recycledContentPct"] },
+  "eventTypes": ["product.shipped", "custody.transferred", "product.inspected", "product.repaired", "product.recycled", "custom.state_of_health"]
+}

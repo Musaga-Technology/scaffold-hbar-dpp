@@ -1,0 +1,15 @@
+{
+  "name": "product-passport-yarn",
+  "description": "Commands that must pass after every attempt, with no secrets and no live network. Keep \"install\" named install for fingerprint skipping.",
+  "requiresNoSecrets": true,
+  "forbiddenCommands": ["npm install", "npm run", "pnpm install", "pnpm run", "npx hardhat run --network hederaTestnet"],
+  "commands": [
+    { "name": "install", "command": "yarn install", "timeoutMs": 600000, "purpose": "Install all workspaces." },
+    { "name": "lint", "command": "yarn lint", "timeoutMs": 300000, "purpose": "Lint nextjs + hardhat + indexer." },
+    { "name": "next-types", "command": "yarn next:check-types", "timeoutMs": 300000, "purpose": "TypeScript check for the app." },
+    { "name": "hardhat-compile", "command": "yarn hardhat:compile", "timeoutMs": 300000, "purpose": "Compile PassportRegistry and mocks." },
+    { "name": "hardhat-test", "command": "yarn hardhat:test", "timeoutMs": 600000, "purpose": "Unit tests against MockHTS (no network)." },
+    { "name": "indexer-test", "command": "yarn indexer:test", "timeoutMs": 300000, "purpose": "Decoder, replay and reconciliation tests on recorded mirror-node fixtures." },
+    { "name": "next-build", "command": "yarn next:build", "timeoutMs": 600000, "purpose": "Production build with fixtures (no .env)." }
+  ]
+}
