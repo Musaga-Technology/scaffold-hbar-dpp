@@ -1,7 +1,7 @@
 # Increment 03 — UI: public verify page, issuer dashboard, event logging, custody transfer
 
 ## Goal
-Deliver the journeys J1–J4 from PRD.md on top of increments 01–02 using scaffold-hbar UI conventions (DaisyUI, `useScaffoldReadContract` / `useScaffoldWriteContract`, RainbowKit, notifications).
+Deliver the public verification, issuer registration, event logging and custody transfer journeys on top of increments 01–02 using scaffold-hbar UI conventions (DaisyUI, `useScaffoldReadContract` / `useScaffoldWriteContract`, RainbowKit, notifications).
 
 ## Deliver
 1. `/` — hero explaining passports in two sentences, registry stats from `/api/passport/stats`, serial search box → `/verify/[serial]`, "Open demo passport" link, network indicator.

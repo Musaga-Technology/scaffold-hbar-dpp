@@ -4,9 +4,15 @@
   "version": "0.1.0",
   "create-scaffold-hbar": {
     "capabilities": {
-      "frontend": ["nextjs-app"],
-      "solidityFramework": ["hardhat"],
-      "packageManager": ["yarn"]
+      "frontend": [
+        "nextjs-app"
+      ],
+      "solidityFramework": [
+        "hardhat"
+      ],
+      "packageManager": [
+        "yarn"
+      ]
     },
     "defaults": {
       "frontend": "nextjs-app",
@@ -19,7 +25,7 @@
     "outro": {
       "sections": [
         {
-          "title": "Explore it first — no account needed",
+          "title": "Explore it first \u2014 no account needed",
           "steps": [
             {
               "label": "Start the app on bundled demo data",
@@ -39,12 +45,12 @@
             {
               "label": "2. Fund it",
               "url": "https://portal.hedera.com/faucet",
-              "text": "Paste the address printed above. The bootstrap needs roughly 35 HBAR: about 2 to deploy, about 20 for HTS token creation, the rest for the topic and its messages."
+              "text": "Paste the address printed above. The bootstrap needs about 25 HBAR: roughly 2 to deploy, 20 for HTS token creation, 1 for the topic and its messages, and a small buffer. It tells you the exact shortfall before spending anything."
             },
             {
               "label": "3. Bootstrap",
               "command": "{run:passport:bootstrap}",
-              "text": "Deploys PassportRegistry, creates the NFT collection, creates the demo product's HCS topic, registers the product and submits its first events. Idempotent — safe to re-run."
+              "text": "Deploys PassportRegistry, creates the NFT collection, creates the demo product's HCS topic, registers the product and submits its first events. Idempotent \u2014 safe to re-run."
             },
             {
               "label": "4. Index it",
