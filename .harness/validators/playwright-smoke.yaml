@@ -2,7 +2,12 @@
 # no crash text. Rich UX checks live in acceptance-contract.json.
 name: product-passport-smoke
 server:
-  command: yarn next:start
+  # `yarn next:start` is `next dev`, which compiles each route on its first
+  # request — a cold API route can exceed the hydration timeout and fail the
+  # gate for a reason that has nothing to do with the app. `yarn next:serve`
+  # runs the production build the baseline already produced, which is also the
+  # artifact actually shipped.
+  command: yarn next:serve
   url: http://localhost:3000
   timeoutMs: 180000
 defaults:
