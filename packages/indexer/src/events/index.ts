@@ -9,6 +9,13 @@ export { canonicalize, hashPayload, sha256Hex } from "./canonical.js";
 export { assertNoEmbeddedContent, buildEvent, type BuildEventInput } from "./build.js";
 export { decodeBase64Event, decodeEvent } from "./decode.js";
 export {
+  METADATA_POINTER_MAX_BYTES,
+  buildHip412Metadata,
+  checkMetadataPointer,
+  type BuildMetadataInput,
+  type Hip412Metadata,
+} from "./metadata.js";
+export {
   DEFAULT_IPFS_GATEWAY,
   gatewayUrl,
   ipfsUri,

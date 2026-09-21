@@ -41,6 +41,8 @@ import {
 import { STATE_FILENAME, readState, writeState, type PassportState } from "./lib/state";
 import { buildEvent } from "./lib/events";
 import { DEMO_CATEGORY, DEMO_EVENTS, DEMO_PRODUCT, demoMetadataUrl, demoProductHash } from "./lib/demoProduct";
+import { buildHip412Metadata, checkMetadataPointer, METADATA_POINTER_MAX_BYTES } from "./lib/metadata";
+import { canPin, pinJson } from "./lib/storage";
 
 const COLLECTION_NAME = "Product Passports";
 const COLLECTION_SYMBOL = "PASS";
@@ -226,10 +228,38 @@ async function main(): Promise<void> {
 
     if (state.serial === undefined) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      // Keyed by topic, because the serial does not exist until this mint
-      // returns and the metadata bytes are an argument to it.
-      const metadata = hre.ethers.toUtf8Bytes(demoMetadataUrl(appUrl, state.topicId!));
       const productHash = `0x${demoProductHash()}`;
+
+      // Prefer a content address. An app URL makes the token's identity depend
+      // on that app staying online, which is a poor property for a record meant
+      // to outlive the product.
+      let pointer = demoMetadataUrl(appUrl, state.topicId!);
+      if (canPin()) {
+        const cid = await pinJson(
+          buildHip412Metadata({
+            category: DEMO_CATEGORY,
+            topicId: state.topicId!,
+            productHash: demoProductHash(),
+            fields: { ...DEMO_PRODUCT },
+          }),
+        );
+        if (cid) {
+          pointer = `ipfs://${cid}`;
+          console.log(`  metadata pinned ${pointer}`);
+        }
+      } else {
+        console.log("  metadata will be served by the app (set PINATA_JWT to pin it to IPFS instead)");
+      }
+
+      const pointerSize = checkMetadataPointer(pointer);
+      if (!pointerSize.fits) {
+        throw new Error(
+          `The metadata pointer is ${pointerSize.bytes} bytes, over the registry's ${METADATA_POINTER_MAX_BYTES}-byte limit.\n` +
+            "Set PINATA_JWT so it can be a short ipfs:// reference, or shorten NEXT_PUBLIC_APP_URL.",
+        );
+      }
+
+      const metadata = hre.ethers.toUtf8Bytes(pointer);
 
       const tx = await registry.registerProduct(metadata, productHash, state.topicId, { gasLimit: 1_500_000 });
       const receipt = await tx.wait();
@@ -247,6 +277,7 @@ async function main(): Promise<void> {
 
       state.serial = Number(event.args.serial);
       state.registerTxHash = receipt!.hash;
+      state.metadataPointer = pointer;
       writeState(statePath, state);
       console.log(`  registered serial ${state.serial}`);
     } else {

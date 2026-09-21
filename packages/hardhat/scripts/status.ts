@@ -123,6 +123,17 @@ async function main(): Promise<void> {
   await reportEntities(state, network, mirror);
   reportIndexer();
 
+  if (state.metadataPointer) {
+    const pinned = state.metadataPointer.startsWith("ipfs://");
+    line(
+      pinned ? OK : UNSET,
+      "metadata",
+      pinned
+        ? `${state.metadataPointer}  (content-addressed)`
+        : `${state.metadataPointer}  (served by the app — set PINATA_JWT to pin it instead)`,
+    );
+  }
+
   if (state.deployerAddress) {
     const account = await fetchAccountByEvmAddress(mirror, state.deployerAddress);
     const balance = account?.balance ? tinybarToHbar(BigInt(account.balance.balance)) : undefined;

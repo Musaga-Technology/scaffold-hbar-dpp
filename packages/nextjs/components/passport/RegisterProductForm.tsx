@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { SchemaForm } from "./SchemaForm";
+import { METADATA_POINTER_MAX_BYTES, checkMetadataPointer } from "@sh/indexer/events/metadata";
 import { canonicalize } from "@sh/indexer/events/canonicalize";
 import { decodeEventLog, toBytes, toHex } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
@@ -31,6 +32,7 @@ interface Registered {
   topicId: string;
   tokenId: string;
   transactionHash: string;
+  metadataPointer: string;
 }
 
 /**
@@ -89,9 +91,10 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
       }
       const topicId: string = topicBody.topicId;
 
-      // 2. Mint the serial and bind it to that topic.
-      setBusy("Registering the product on-chain…");
-      const metadataUrl = `${window.location.origin}/api/passport/metadata/${topicId}`;
+      // 2. Pin the HIP-412 metadata, so the token's pointer does not depend on
+      //    this app staying online. Falls back to an app URL when no storage
+      //    provider is configured — documented as the weaker option.
+      setBusy("Pinning the passport's metadata…");
       // Canonical JSON, hashed with Web Crypto — the same serialisation the
       // indexer verifies with. Hashing JSON.stringify output instead would
       // depend on key order and produce a hash nobody could reproduce.
@@ -99,9 +102,34 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
         new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalize(payload)))),
       );
 
+      // Without a storage provider this stays an app URL, which works but ties
+      // the token's identity to this server staying up.
+      let metadataPointer = `${window.location.origin}/api/passport/metadata/${topicId}`;
+      const metadataResponse = await fetch("/api/passport/metadata", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ category: category.id, topicId, productHash, fields: payload }),
+      });
+      if (metadataResponse.ok) {
+        const metadataBody = await metadataResponse.json();
+        if (metadataBody.uri) metadataPointer = metadataBody.uri;
+      }
+
+      const pointerSize = checkMetadataPointer(metadataPointer);
+      if (!pointerSize.fits) {
+        notification.error(
+          `The metadata pointer is ${pointerSize.bytes} bytes, over the registry's ${METADATA_POINTER_MAX_BYTES}-byte limit. ` +
+            "Configure PINATA_JWT so it can be a short ipfs:// reference instead of a long URL.",
+        );
+        return;
+      }
+
+      // 3. Mint the serial and bind it to that topic.
+      setBusy("Registering the product on-chain…");
+
       const hash = await writeContractAsync({
         functionName: "registerProduct",
-        args: [toHex(toBytes(metadataUrl)), productHash, topicId],
+        args: [toHex(toBytes(metadataPointer)), productHash, topicId],
       });
       if (!hash) return;
 
@@ -128,7 +156,7 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
         return;
       }
 
-      // 3. Record the registration on the topic, referencing the mint.
+      // 4. Record the registration on the topic, referencing the mint.
       setBusy("Writing the first lifecycle event…");
       const eventResponse = await fetch("/api/passport/events", {
         method: "POST",
@@ -148,7 +176,7 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
         notification.error(`Serial ${serial} was minted, but its first event could not be submitted: ${body.message}`);
       }
 
-      setResult({ serial, topicId, tokenId, transactionHash: hash });
+      setResult({ serial, topicId, tokenId, transactionHash: hash, metadataPointer });
     } catch (error) {
       notification.error(error instanceof Error ? error.message : "Registration failed.");
     } finally {
@@ -176,6 +204,10 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
           <div className="flex justify-between gap-4">
             <dt className="text-base-content/60">Topic</dt>
             <dd className="m-0 font-mono">{result.topicId}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-base-content/60">Metadata</dt>
+            <dd className="m-0 break-all text-right font-mono text-xs">{result.metadataPointer}</dd>
           </div>
         </dl>
 

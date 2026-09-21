@@ -191,6 +191,33 @@ that was replaced after attestation.
 proves only that the document is the one attested at that consensus timestamp.
 That is a narrow guarantee and the UI states it narrowly.
 
+### Token metadata is content-addressed too
+
+The bytes stored on an HTS serial are the only pointer a wallet or an explorer
+has to what the token *is*. Pointing them at the issuer's own web app — which is
+what most templates do, and what this one did first — makes every passport's
+identity depend on that app still being online. That is a strange property for a
+record meant to outlive the product and a worse one for a record meant to
+outlive the company.
+
+So `registerProduct` stores `ipfs://<cid>` when a storage provider is
+configured, and the HIP-412 document is pinned before the mint that references
+it. `yarn passport:status` reports which of the two a serial got:
+
+```
+  ok    metadata    ipfs://bafybeigdyrz…  (content-addressed)
+  unset metadata    http://localhost:3000/api/passport/metadata/0.0.6666666666  (served by the app — set PINATA_JWT to pin it instead)
+```
+
+HIP-412 metadata is immutable for the life of a serial, so the pinned document
+is a snapshot taken at registration. Everything that changes afterwards —
+custody, events, verification status — lives on the verify page, which reads the
+index. They are not competing copies of the same thing.
+
+The registry caps that pointer at 100 bytes. An `ipfs://` URI is about 60 and
+fits; a long hosted URL may not, which is a quiet second argument for content
+addressing. Both mint paths check before spending gas.
+
 ### Configuring it
 
 Set `PINATA_JWT` in `packages/nextjs/.env.local`; a free key is enough for

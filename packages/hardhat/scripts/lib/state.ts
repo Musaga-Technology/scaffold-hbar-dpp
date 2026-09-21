@@ -28,6 +28,8 @@ export interface PassportState {
   topicId?: string;
   /** EVM transaction hash of the registerProduct call. */
   registerTxHash?: string;
+  /** What the serial's HIP-412 metadata points at — `ipfs://…` or an app URL. */
+  metadataPointer?: string;
   /** Hedera transaction ids of the demo events submitted to the topic. */
   eventTransactionIds?: string[];
   /** ISO timestamp of the last successful bootstrap step. */

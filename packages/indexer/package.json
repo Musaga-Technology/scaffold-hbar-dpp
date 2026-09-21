@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./events": "./src/events/index.ts",
-    "./events/canonicalize": "./src/events/canonicalize.ts"
+    "./events/canonicalize": "./src/events/canonicalize.ts",
+    "./events/metadata": "./src/events/metadata.ts"
   },
   "bin": {
     "passport-indexer": "./dist/index.js"
