@@ -28,3 +28,9 @@ deployments
 
 # other
 temp
+
+# local env overrides
+.env.local
+
+# per-developer bootstrap state (ids of what YOU deployed, not template content)
+passport.state.json

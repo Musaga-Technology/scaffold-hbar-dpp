@@ -46,6 +46,8 @@
     "next:lint": "yarn workspace @sh/nextjs lint",
     "next:serve": "yarn workspace @sh/nextjs serve",
     "next:start": "yarn workspace @sh/nextjs start",
+    "passport:bootstrap": "yarn workspace @sh/hardhat passport:bootstrap",
+    "passport:status": "yarn workspace @sh/hardhat passport:status",
     "postinstall": "husky",
     "precommit": "lint-staged",
     "lint-staged": "lint-staged",

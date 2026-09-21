@@ -1,268 +1,179 @@
-# SubRent — Subscription NFT Marketplace
+# product-passport — Provenance & Digital Product Passports on Hedera
 
-Hedera HTS subscription marketplace: tokenize subscriptions (gym, WiFi, streaming, etc.) as NFTs, **rent** unused periods via escrow, or **sell/bid** on a secondary market. Hardhat contracts + Next.js App Router UI.
+A scaffold-hbar template that gives any team a working Digital Product Passport (DPP) system on Hedera in one command.
 
-CLI key: `tokenize-subscriptions` (branch `templates/tokenize-subscriptions`).
+Every physical product — a battery, a garment, a pallet of coffee, a pharmaceutical lot — gets an HTS non-fungible token as its identity, an HCS topic as its ordered lifecycle log, and a public page anyone can verify by scanning a QR code.
 
-General Scaffold-HBAR setup: [Scaffold HBAR on Hedera](https://docs.hedera.com/solutions/tools/scaffold-hbar/index). Deep contract behavior: [packages/hardhat/docs/contract-behavior.md](packages/hardhat/docs/contract-behavior.md).
+```bash
+npm create scaffold-hbar@latest my-passports -- --template <your-org>/scaffold-hbar-product-passport
+```
 
-## Disclaimer
+> **Build status.** This template is being built in increments. Increment 01 (workspace shape, `PassportRegistry`, bootstrap) is complete; the HCS event layer and indexer (02), the UI (03) and the airdrop/claim flow (04) are in progress. Sections below marked _(increment NN)_ describe behaviour that is designed and specified in `.harness/prds/` but not yet implemented. This notice is removed when all four increments land.
 
-This template—including **contracts, frontend, and tooling**—is **experimental** and **not audited**. Do not use it in production without proper security review and your own due diligence.
+## Why this template
 
-## How It Works
+- **A real deadline.** EU battery passports are mandatory from 18 February 2027 under Regulation 2023/1542. ESPR extends Digital Product Passports to steel, textiles, furniture and electronics through 2030. Every brand selling into the EU needs a reference implementation.
+- **The canonical HCS pattern, end to end.** Hedera's own guidance is that HCS records what happened so it can be trusted later, and a database answers queries. This template implements exactly that — including the "write ten state transitions, rebuild state from the mirror node, compare" check, as a one-line script.
+- **Hedera-only capabilities.** Consensus timestamps, native NFT compliance keys, HIP-904 airdrops, the mirror node as the indexing source, and HTS-from-Solidity through the system contract at `0x167`.
 
-### Rental Marketplace
+## From zero to a live passport in 5 commands
 
-1. **Tokenize** — Mint your subscription as an NFT with provider, tier, and validity dates
-2. **List** — Create availability windows for periods you won't use; set a daily price
-3. **Rent** — Others book your listed periods, paying HBAR into escrow
-4. **Earn** — Claim payouts after booking periods start (marketplace takes 5% fee)
+```bash
+yarn install
+yarn hardhat:account:generate     # creates an ECDSA deployer key
+# fund it at https://portal.hedera.com/faucet  (~25 HBAR)
+yarn passport:bootstrap           # deploy, create collection + topic, register a demo product
+yarn indexer:dev                  # index the mirror node and reconcile custody
+yarn next:start                   # then open http://localhost:3000/verify/1
+```
 
-The NFT stays with the owner throughout. Booking creates an on-chain **access-right record** — `userOf(serialNumber)` returns who currently has rental rights.
+`yarn passport:bootstrap` is idempotent. If it fails halfway — an unfunded account, a fee set too low — fix the cause and run it again; finished steps are skipped and not paid for twice.
 
-### Sales Marketplace
+### Or explore it first, with no account at all
 
-1. **List for Sale** — Create a fixed-price listing or start an English auction (3-day duration)
-2. **Buy/Bid** — Others can buy immediately or place bids on auctions
-3. **Transfer** — NFT ownership transfers to the buyer; seller receives payment minus fees
-4. **Provider Royalty** — 5% of sale price goes to the original service provider
+```bash
+yarn install
+yarn next:start                   # http://localhost:3000/verify/1
+```
 
-**Fee structure on sales:** 5% provider royalty + 5% marketplace fee + 90% to seller.
+With no `.env` and no network, the app serves bundled demo fixtures so the whole UI is explorable offline, with a banner saying the data is demo data _(increment 03)_.
+
+## Why HCS plus an index, and not HCS as a database
+
+An HCS topic is an append-only, consensus-ordered log. It is excellent at proving that something was claimed at a particular moment, and bad at answering "show me every battery from plant 2 with a failed inspection". Submitting a message also costs about $0.0008, so a topic is not a place to put documents.
+
+So this template splits the job:
+
+| Concern | Where it lives | Why |
+| --- | --- | --- |
+| What happened, in what order | HCS topic, one per product | Consensus timestamps are the proof |
+| Who holds the product now | HTS NFT custody | The network's own answer, not a claim |
+| Answering queries | Indexer database | Rebuildable from the mirror node at any time |
+| Large content | Off-chain, hash + URL only | HCS messages are capped at 1024 bytes here |
+
+The two truth sources are deliberately reconciled rather than merged. For every custody claim on HCS, the indexer checks the NFT's real transfer history on the mirror node. A claim with no matching transfer is surfaced as a **discrepancy**, never hidden. `yarn indexer:verify` replays the whole log into a temporary index and diffs it against the live one _(increment 02)_.
 
 ## Architecture
 
 ```
-┌─────────────────────┐     ┌──────────────────────────┐     ┌───────────────────────────────┐
-│  SubscriptionNFT    │     │  SubscriptionMarketplace │     │  SubscriptionSalesMarketplace │
-│  ─────────────────  │     │  ──────────────────────  │     │  ───────────────────────────  │
-│  • createCollection │◄────│  • createAvailability    │     │  • createFixedPriceListing    │
-│  • mintSubscription │     │  • book (escrow HBAR)    │◄────│  • createAuction              │
-│  • getSubscription  │     │  • userOf (rental check) │     │  • buy / bid                  │
-│  • currentOwner     │     │  • claimBookingPayout    │     │  • settleAuction              │
-│  • providerAddress  │     │  • hasActiveFutureBookings│     │  • 5% provider royalty        │
-└─────────────────────┘     └──────────────────────────┘     └───────────────────────────────┘
-         │                              │                                    │
-         └──────────┬───────────────────┴────────────────────────────────────┘
-                    ▼
-           ┌────────────────┐
-           │  HTS Precompile │
-           │    (0x167)      │
-           └────────────────┘
+packages/
+  hardhat/     PassportRegistry.sol (HTS via 0x167), MockHTS tests, bootstrap + status scripts
+  nextjs/      App Router UI, /api/passport/* server routes, schema-driven forms, QR
+  indexer/     mirror node poller -> event decoder -> SQLite/Postgres -> reconciliation
+schemas/       passport-event.schema.json + one file per product category
+.harness/      incremental PRDs, validators and the acceptance contract
 ```
 
-## Prerequisites
+Reads never touch HCS or the contract directly — they hit the index. That is an architectural rule, not a preference, and it is checked by assertion C8 of `.harness/acceptance-contract.json`.
 
-- Node.js ≥ 20.18.3, Git
-- Yarn (default; required if you clone this repo) or npm if you scaffolded with the CLI
-- Hedera-compatible wallet — [MetaMask](https://metamask.io/) or [HashPack](https://www.hashpack.app/)
-- [WalletConnect project ID](https://cloud.reown.com) in `packages/nextjs/.env`
+## The registry contract
 
-## Quick Start
+`PassportRegistry` mints one HTS serial per product through the system contract and binds it to that product's topic.
 
-### 1. Install
-
-```bash
-yarn install
-cp packages/hardhat/.env.example packages/hardhat/.env
-cp packages/nextjs/.env.example packages/nextjs/.env
-```
-
-### 2. Deployer account
-
-```bash
-yarn hardhat:account:generate
-yarn hardhat:account
-```
-
-Fund the deployer via [Hedera Portal Faucet](https://portal.hedera.com/faucet) (~50 HBAR for deploy + collection creation).
-
-### 3. Deploy to Hedera testnet
-
-```bash
-yarn hardhat:compile
-yarn hardhat:test               # local MockHTS unit tests
-
-yarn hardhat:deploy --network hederaTestnet
-```
-
-Deploys `SubscriptionNFT`, `SubscriptionMarketplace`, and `SubscriptionSalesMarketplace`. Addresses are saved to `packages/nextjs/contracts/deployedContracts.ts`.
-
-### 4. Initialize the NFT collection
-
-Required before minting any NFTs:
-
-```bash
-cd packages/hardhat
-npx ts-node scripts/createCollection.ts
-cd ../..
-```
-
-Calls `createCollection()` and pays ~40 HBAR for HTS token creation fees.
-
-### 5. Start the frontend
-
-```bash
-yarn next:start
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-### 6. Connect wallet
-
-**MetaMask — Hedera Testnet**
-
-| Field | Value |
-| --- | --- |
-| Network Name | Hedera Testnet |
-| RPC URL | `https://testnet.hashio.io/api` |
-| Chain ID | `296` |
-| Currency Symbol | HBAR |
-| Explorer | `https://hashscan.io/testnet` |
-
-Fund the wallet via the [faucet](https://portal.hedera.com/faucet).
-
-**HashPack** — create/import a testnet account and fund via the same faucet.
-
-### 7. Use the marketplace
-
-With wallet connected:
-
-1. **Mint** (`/mint`) — Create a subscription NFT
-2. **My Subscriptions** (`/my-subscriptions`) — View NFTs; create rental or sale listings
-3. **Rentals** (`/marketplace`) — Browse and book rental listings
-4. **Sales** (`/sales`) — Browse, buy, or bid on subscriptions for sale
-5. **My Bookings** (`/my-bookings`) — View rentals and claim payouts
-
-## Optional: end-to-end script
-
-After deploy + collection creation:
-
-```bash
-cd packages/hardhat
-npx ts-node scripts/testFullFlow.ts
-```
-
-Demonstrates minting ("Gym A - Premium", 90-day validity), listing availability (14-day window, 1 HBAR/day), booking 3 days, and verifying `userOf()` returns the renter.
-
-## Hedera value handling
-
-Hedera's EVM quirk with `msg.value`:
-
-| Context | Unit | 1 HBAR equals |
+| Function | Who | What it does |
 | --- | --- | --- |
-| JSON-RPC (sending tx) | wei | 10^18 |
-| Contract `msg.value` | tinybars | 10^8 |
-| Conversion | 1 tinybar = 10^10 wei | |
+| `createCollection(name, symbol)` | owner | Creates the NFT collection. Registry is treasury and sole supply key holder. Payable — forwards `msg.value` as the token creation fee. |
+| `registerProduct(metadata, productHash, topicId)` | owner or allow-listed issuer | Mints one serial, stores the topic binding, emits `ProductRegistered` |
+| `transferCustody(serial, to)` | current holder | Moves the NFT, emits `CustodyTransferred` |
+| `airdropPassport(serial, to)` | owner or product issuer | Sends a treasury-held passport to a consumer |
+| `setIssuer(account, allowed)` | owner | Grants permission to register products |
+| `setEventLogger(serial, account, allowed)` | owner or product issuer | Allow-list for logging lifecycle events |
 
-Store prices in contracts as **tinybars** (8 decimals):
+**Deliberately no freeze, pause or wipe keys.** A passport must stay transferable for the life of the product and must not be clawed back. Regulated categories that need those keys should add them in `_defaultTokenKeys` and document the consequence.
 
-```javascript
-// Storing 1 HBAR price
-const pricePerDay = ethers.parseUnits("1", 8);  // 100000000 tinybars
+**On-chain metadata is a pointer, never a document.** `registerProduct` caps metadata at 100 bytes — enough for a URL to the HIP-412 JSON, not enough to smuggle a PDF onto the ledger.
 
-// Sending 3 HBAR payment via JSON-RPC
-const costTinybars = pricePerDay * 3n;
-const costWei = costTinybars * BigInt(10 ** 10);
-await contract.book(..., { value: costWei });
+## Event model
+
+Every lifecycle event is a compact JSON message on the product's topic, validated against `schemas/passport-event.schema.json` and capped at 1024 bytes:
+
+```json
+{
+  "v": 1,
+  "type": "product.inspected",
+  "serial": 1,
+  "tokenId": "0.0.5005",
+  "ts": "2026-09-21T10:00:00.000Z",
+  "actor": "0xabc…",
+  "payloadHash": "9f86d0…",
+  "payload": { "result": "pass", "inspector": "TUV Rheinland" }
+}
 ```
 
-## Contract functions
+`payloadHash` is the sha256 of the canonical JSON of `payload` (keys sorted, no whitespace), so the indexer can prove a payload was not edited after the fact. Consensus timestamp is authoritative; `ts` is only what the client claimed.
 
-### SubscriptionNFT
+Attachments — certificates, photos, test reports — are referenced by hash and URL. Nothing large goes on HCS.
 
-| Function | Description |
+## Commands
+
+| Command | What it does |
 | --- | --- |
-| `createCollection(name, symbol, memo)` | Owner creates HTS NFT collection (once, requires HBAR) |
-| `mintSubscription(providerAddress, provider, tier, start, end)` | Mint subscription NFT with royalty recipient |
-| `getSubscription(serialNumber)` | Get subscription metadata |
-| `getProviderAddress(serialNumber)` | Get royalty recipient address |
-| `currentOwner(serialNumber)` | Get current NFT owner via HTS |
-| `isExpired(serialNumber)` | Check if subscription has expired |
+| `yarn install` | Install all three workspaces |
+| `yarn passport:bootstrap` | Zero to a live passport on Hedera testnet |
+| `yarn passport:status` | Check every deployed entity against the mirror node |
+| `yarn indexer:dev` | Poll the mirror node, reconcile custody, serve the index API |
+| `yarn indexer:replay` | Drop the index and rebuild it from sequence 1 |
+| `yarn indexer:verify` | Replay into a temp index and diff it against the live one |
+| `yarn indexer:test` | Indexer unit tests |
+| `yarn next:start` | Run the app |
+| `yarn next:build` | Production build |
+| `yarn hardhat:test` | Contract unit tests against MockHTS |
+| `yarn hardhat:test:forking` | Optional tests against a Hedera fork |
+| `yarn lint` / `yarn format` | All three workspaces |
 
-### SubscriptionMarketplace (rentals)
+## Deployment
 
-| Function | Description |
-| --- | --- |
-| `createAvailability(serial, start, end, pricePerDay)` | List rental window (owner only) |
-| `book(availabilityId, startDate, days)` | Book and pay (escrows HBAR) |
-| `userOf(serialNumber)` | Returns active renter or zero address |
-| `cancelBooking(bookingId)` | Cancel before start for full refund |
-| `claimBookingPayout(bookingId)` | Owner claims payment after start |
-| `hasActiveFutureBookings(serialNumber)` | Check if serial has future bookings (view) |
+**App.** Deploy with Vercel — the app renders the fixture passport with zero environment configuration, so a first deploy is never broken. Set `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` as encrypted environment variables to enable the server routes that create topics and submit events _(increment 04)_.
 
-### SubscriptionSalesMarketplace (sales)
+**Indexer.** `docker compose up indexer` runs the indexer against Postgres; `yarn indexer:dev` stays the zero-setup SQLite path _(increment 04)_.
 
-| Function | Description |
-| --- | --- |
-| `createFixedPriceListing(serial, price)` | List NFT for immediate sale |
-| `createAuction(serial, reservePrice)` | Start 3-day English auction |
-| `buy(listingId)` | Buy fixed-price listing |
-| `bid(listingId)` | Place bid on auction (payable) |
-| `settleAuction(listingId)` | Settle ended auction |
-| `cancelListing(listingId)` | Cancel listing (no bids for auction) |
-| `getMinimumBid(listingId)` | Get minimum required bid for auction |
+Deployment is always an explicit command after funding — never a side effect of scaffolding or CI.
 
-## Testing
+## Extending it
 
-```bash
-yarn hardhat:test               # local unit tests (MockHTS)
-yarn hardhat:test:forking       # optional forked tests against testnet
-```
+- **A new product category** — add a file to `schemas/categories/`. It drives the register form, validation and passport rendering. No core files change.
+- **A new event type** — add it to the event registry and write one decoder function.
+- **Postgres instead of SQLite** — set `DATABASE_URL`.
+- **Custom reconciliation** — reconciliation rules live in `packages/indexer/src/reconcile.ts`.
 
-## Development commands
+See `AGENTS.md` for the full extension guide and the invariants that must hold.
 
-```bash
-yarn next:dev                   # hot reload
-yarn next:build
-yarn hardhat:compile
-yarn hardhat:verify:testnet
-yarn lint
-yarn format
-```
+## Security
 
-## Project structure
-
-```
-packages/hardhat/
-  contracts/     SubscriptionNFT, SubscriptionMarketplace, SubscriptionSalesMarketplace
-  deploy/        hardhat-deploy scripts (03–05)
-  scripts/       createCollection.ts, testFullFlow.ts
-  tasks/         sales:* Hardhat tasks
-  test/          unit tests with MockHTS
-packages/nextjs/
-  app/           mint, marketplace, sales, my-subscriptions, my-bookings, debug
-  components/    marketplace/
-  hooks/         marketplace/, sales/, scaffold-hbar/
-  utils/hedera/  tinybar/wei helpers, date parsing
-  contracts/     deployedContracts.ts (generated)
-```
+- The operator key is **server-side only**. It never reaches the browser, and it is never prefixed `NEXT_PUBLIC_`.
+- The indexer holds no key at all. It only reads.
+- `.env` files are gitignored in every workspace; `.env.example` documents what is needed.
+- `passport.state.json` records ids of what you deployed, not secrets, and is gitignored.
 
 ## Troubleshooting
 
-### "INVALID_FULL_PREFIX_SIGNATURE_FOR_PRECOMPILE" (Error 326)
+Run `yarn passport:status` first — it checks every entity against the mirror node and reports which step is missing.
 
-Use `delegatableContractId` (not `contractId`) for HTS authorization. Ensure `autoRenewAccount` is set to `address(this)`.
+**`INVALID_FULL_PREFIX_SIGNATURE_FOR_PRECOMPILE` (error 326).** Use `delegatableContractId`, not `contractId`, for HTS key authorization, and set `autoRenewAccount` to `address(this)`. `PassportRegistry` already does both.
 
-### "IncorrectPayment" on booking
+**`HtsCreateFailed(9)` on createCollection.** The token creation fee was too low. Raise it: `BOOTSTRAP_COLLECTION_FEE_HBAR=40 yarn passport:bootstrap`. The default is 20 HBAR, which is usually enough on testnet.
 
-Prices must be in **tinybars** (8 decimals); JSON-RPC payments in **wei** (18 decimals). See value handling above.
+**Insufficient balance.** The bootstrap prints the exact shortfall and a per-step cost breakdown before spending anything. Fund the deployer and re-run.
 
-### "HtsCreateFailed(9)" on createCollection
+**Deployer shows an EVM address, not a `0.0.x` account id.** Both work with the [faucet](https://portal.hedera.com/faucet). An account only exists on the mirror node once it has been funded, which is why the bootstrap asks you to fund before it can derive the operator id.
 
-Insufficient HBAR for token creation — send at least 40 HBAR with the transaction.
+**ECDSA vs ED25519.** EVM flows need an ECDSA account. `yarn hardhat:account:generate` creates one.
 
-### CORS errors with hashio.io RPC
+**Mirror node lag.** The mirror node trails consensus by a second or two, so an entity can 404 immediately after it is created. The bootstrap polls rather than assuming; the UI shows `pending` rather than claiming `verified`.
 
-Set `NEXT_PUBLIC_HEDERA_TESTNET_RPC_URL` in `packages/nextjs/.env` to a CORS-enabled endpoint (e.g. [Arkhia](https://arkhia.io/)), or rely on wallet-connected operations (wallets handle RPC internally).
+**CORS errors with hashio.io.** Set `NEXT_PUBLIC_HEDERA_TESTNET_RPC_URL` to a CORS-enabled endpoint such as [Arkhia](https://arkhia.io/), or rely on wallet-connected operations.
 
-### Deployer shows EVM address, not Hedera account ID
+## Disclaimer
 
-`yarn hardhat:account:generate` shows `0x…` format. Both EVM and `0.0.xxxxx` formats work with the [faucet](https://portal.hedera.com/faucet).
+The category schemas, including `battery.json`, are illustrative subsets aligned to published regulation. They are a starting point for developers, not legal advice or a certified compliance implementation.
 
 ## Links
 
-- [Hedera Documentation](https://docs.hedera.com/)
-- [Hashscan Explorer](https://hashscan.io/testnet)
-- [HTS Precompile Reference](https://docs.hedera.com/hedera/core-concepts/smart-contracts/hedera-token-service-hts-precompiled-contract)
-- [Hedera Portal Faucet](https://portal.hedera.com/faucet)
+- [Hedera documentation](https://docs.hedera.com/)
+- [HashScan explorer](https://hashscan.io/testnet)
+- [HTS system contract reference](https://docs.hedera.com/hedera/core-concepts/smart-contracts/hedera-token-service-hts-precompiled-contract)
+- [Hedera portal faucet](https://portal.hedera.com/faucet)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
