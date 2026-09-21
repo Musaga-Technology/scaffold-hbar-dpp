@@ -15,7 +15,7 @@ contract MockHTS is IHederaTokenService {
     mapping(address token => TokenData data) private _tokens;
     mapping(address token => mapping(int64 serial => address owner)) private _nftOwners;
     mapping(address token => mapping(address owner => mapping(address spender => bool))) private _operatorApprovals;
-    
+
     uint256 private _tokenCounter;
 
     struct TokenData {
@@ -33,18 +33,19 @@ contract MockHTS is IHederaTokenService {
     event NFTMinted(address indexed token, int64 serialNumber, address indexed treasury);
     event NFTTransferred(address indexed token, int64 serialNumber, address indexed from, address indexed to);
 
-    function createNonFungibleToken(HederaToken memory token)
-        external
-        payable
-        override
-        returns (int64 responseCode, address tokenAddress)
-    {
+    function createNonFungibleToken(
+        HederaToken memory token
+    ) external payable override returns (int64 responseCode, address tokenAddress) {
         _tokenCounter++;
-        
+
+        // Supply key may be expressed as a strict contractId or as the more
+        // permissive delegatableContractId; Hedera honours either, so must we.
         address supplyKeyAddr = address(0);
         for (uint256 i = 0; i < token.tokenKeys.length; i++) {
             if (token.tokenKeys[i].keyType == 16) {
-                supplyKeyAddr = token.tokenKeys[i].key.contractId;
+                supplyKeyAddr = token.tokenKeys[i].key.contractId != address(0)
+                    ? token.tokenKeys[i].key.contractId
+                    : token.tokenKeys[i].key.delegatableContractId;
                 break;
             }
         }
@@ -75,7 +76,7 @@ contract MockHTS is IHederaTokenService {
     ) external payable override returns (int64 responseCode, address tokenAddress) {
         _tokenCounter++;
         tokenAddress = address(uint160(_tokenCounter + 0x1000));
-        
+
         _tokens[tokenAddress] = TokenData({
             exists: true,
             isNFT: false,
@@ -102,19 +103,24 @@ contract MockHTS is IHederaTokenService {
         if (tokenData.isNFT) {
             require(amount == 0, "MockHTS: amount must be 0 for NFT minting");
             require(metadata.length > 0, "MockHTS: metadata required for NFT minting");
+            // Mirror the network: only the supply key holder may mint.
+            require(
+                tokenData.supplyKey == address(0) || msg.sender == tokenData.supplyKey,
+                "MockHTS: caller does not hold the supply key"
+            );
 
             serialNumbers = new int64[](metadata.length);
             for (uint256 i = 0; i < metadata.length; i++) {
                 int64 serial = tokenData.nextSerial;
                 tokenData.nextSerial++;
                 tokenData.totalSupply++;
-                
+
                 _nftOwners[token][serial] = tokenData.treasury;
                 serialNumbers[i] = serial;
-                
+
                 emit NFTMinted(token, serial, tokenData.treasury);
             }
-            
+
             newTotalSupply = tokenData.totalSupply;
         } else {
             require(amount > 0, "MockHTS: amount must be > 0 for fungible minting");
@@ -138,16 +144,22 @@ contract MockHTS is IHederaTokenService {
         require(_nftOwners[token][serialNumber] == sender, "MockHTS: sender is not owner");
 
         _nftOwners[token][serialNumber] = receiver;
-        
+
         emit NFTTransferred(token, serialNumber, sender, receiver);
         return SUCCESS;
     }
 
-    function associateToken(address /* account */, address /* token */) external pure override returns (int64 responseCode) {
+    function associateToken(
+        address /* account */,
+        address /* token */
+    ) external pure override returns (int64 responseCode) {
         return SUCCESS;
     }
 
-    function dissociateToken(address /* account */, address /* token */) external pure override returns (int64 responseCode) {
+    function dissociateToken(
+        address /* account */,
+        address /* token */
+    ) external pure override returns (int64 responseCode) {
         return SUCCESS;
     }
 
@@ -207,9 +219,7 @@ contract MockNFTProxy is IERC721 {
     function transferFrom(address from, address to, uint256 tokenId) external override {
         address owner = hts.ownerOf(address(this), int64(uint64(tokenId)));
         require(
-            msg.sender == owner || 
-            _tokenApprovals[tokenId] == msg.sender || 
-            _operatorApprovals[owner][msg.sender],
+            msg.sender == owner || _tokenApprovals[tokenId] == msg.sender || _operatorApprovals[owner][msg.sender],
             "MockNFTProxy: not authorized"
         );
         _transfer(from, to, tokenId);

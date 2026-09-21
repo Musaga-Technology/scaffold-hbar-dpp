@@ -47,10 +47,9 @@ interface IHederaTokenService {
     /// Creates a non-fungible token with the specified properties.
     /// @return responseCode SUCCESS is 22.
     /// @return tokenAddress The created token's address.
-    function createNonFungibleToken(HederaToken memory token)
-        external
-        payable
-        returns (int64 responseCode, address tokenAddress);
+    function createNonFungibleToken(
+        HederaToken memory token
+    ) external payable returns (int64 responseCode, address tokenAddress);
 
     /// Mints fungible amount or NFT serials to the token treasury.
     /// @param metadata For NFTs only; use empty array for fungible.
@@ -63,9 +62,12 @@ interface IHederaTokenService {
 
     /// Transfers an NFT serial from sender to receiver.
     /// @return responseCode SUCCESS is 22.
-    function transferNFT(address token, address sender, address receiver, int64 serialNumber)
-        external
-        returns (int64 responseCode);
+    function transferNFT(
+        address token,
+        address sender,
+        address receiver,
+        int64 serialNumber
+    ) external returns (int64 responseCode);
 
     /// Associates account with token so it can hold token balances.
     /// @return responseCode SUCCESS is 22.
