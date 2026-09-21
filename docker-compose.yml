@@ -1,0 +1,76 @@
+# Run the whole template on any machine that runs containers.
+#
+#   docker compose up
+#
+# Brings up the app, the indexer and Postgres together. Nothing here is tied to
+# a hosting vendor: the same three services run on a laptop, a VM, on-prem, or
+# any cloud.
+#
+# The app renders bundled demo fixtures with no configuration at all. To index a
+# real registry, set the passport variables below — `yarn passport:bootstrap`
+# prints them.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: passport
+      POSTGRES_PASSWORD: passport
+      POSTGRES_DB: passport
+    volumes:
+      - passport-db:/var/lib/postgresql/data
+    healthcheck:
+      # The indexer must not start before the database can accept queries, or
+      # its first migration fails and the container restart-loops.
+      test: ["CMD-SHELL", "pg_isready -U passport -d passport"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  indexer:
+    build:
+      context: .
+      dockerfile: packages/indexer/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://passport:passport@postgres:5432/passport
+      HEDERA_NETWORK: ${HEDERA_NETWORK:-testnet}
+      INDEXER_TOPIC_IDS: ${INDEXER_TOPIC_IDS:-}
+      PASSPORT_REGISTRY_ADDRESS: ${PASSPORT_REGISTRY_ADDRESS:-}
+      INDEXER_PORT: "3001"
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: packages/nextjs/Dockerfile
+    depends_on:
+      - indexer
+    environment:
+      # Reads go to the indexer over HTTP when this is set. The app never opens
+      # the database, so it stays stateless and can run as more than one replica.
+      #
+      # Deliberately empty by default. With no registry configured the indexer
+      # has nothing to serve, and pointing the app at an empty index would make
+      # `docker compose up` render a site with no passports and a 404 on
+      # /verify/1 — which looks broken. Unset, the app serves its bundled demo
+      # fixtures and says so. Set it (see .env.example) once you have
+      # bootstrapped a real registry.
+      INDEX_API_URL: ${INDEX_API_URL:-}
+      NEXT_PUBLIC_HEDERA_NETWORK: ${HEDERA_NETWORK:-testnet}
+      NEXT_PUBLIC_PASSPORT_REGISTRY_ADDRESS: ${PASSPORT_REGISTRY_ADDRESS:-}
+      NEXT_PUBLIC_PASSPORT_TOKEN_ID: ${PASSPORT_TOKEN_ID:-}
+      # Server-side only. Unset, the write routes return 503 with instructions
+      # and everything else keeps working.
+      HEDERA_OPERATOR_ID: ${HEDERA_OPERATOR_ID:-}
+      HEDERA_OPERATOR_PRIVATE_KEY: ${HEDERA_OPERATOR_PRIVATE_KEY:-}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  passport-db:

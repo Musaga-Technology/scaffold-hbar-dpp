@@ -67,9 +67,9 @@ describe("main", () => {
     expect(text()).toContain('Unknown command "frobnicate"');
   });
 
-  it("refuses to start when nothing is configured to index", async () => {
+  it("refuses a one-shot command when nothing is configured to index", async () => {
     const { sink, text } = capture();
-    expect(await main(["dev"], sink)).toBe(1);
+    expect(await main(["replay"], sink)).toBe(1);
     expect(text()).toContain("Nothing to index");
     expect(text()).toContain("yarn passport:bootstrap");
   });
@@ -82,14 +82,17 @@ describe("main", () => {
     expect(text()).toContain("Configuration error");
   });
 
-  it("says plainly that Postgres is not wired up yet, rather than silently using SQLite", async () => {
+  it("uses Postgres when DATABASE_URL is set, rather than silently falling back to SQLite", async () => {
     process.env.INDEXER_TOPIC_IDS = "0.0.1";
-    process.env.DATABASE_URL = "postgres://localhost/passport";
+    // Port 1 refuses immediately, so this asserts the routing without needing a
+    // live database: a SQLite fallback would have succeeded and reported on the
+    // file instead, which is the failure mode worth guarding against.
+    process.env.DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:1/passport";
     const { sink, text } = capture();
 
     expect(await main(["verify"], sink)).toBe(1);
-    expect(text()).toContain("DATABASE_URL");
-    expect(text()).toContain("not implemented yet");
+    expect(text()).toContain("postgres (DATABASE_URL)");
+    expect(text()).not.toContain("sqlite");
   });
 });
 

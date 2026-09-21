@@ -1,0 +1,54 @@
+# Builds both container images on every push.
+#
+# No push, no registry, no secrets — the point is only that the Dockerfiles
+# cannot rot. They are the difference between "self-hostable" being true and
+# being a claim in a README, and nothing else in CI exercises them.
+name: deploy-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the indexer image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/indexer/Dockerfile
+          push: false
+          load: true
+          tags: product-passport-indexer:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build the app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/nextjs/Dockerfile
+          push: false
+          load: true
+          tags: product-passport-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: The app must serve a passport with no configuration at all
+        run: |
+          docker run -d --name app -p 3000:3000 product-passport-app:ci
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3000/ && break
+            sleep 2
+          done
+          # A fresh clone with no .env must still render the demo passport.
+          curl -sf http://localhost:3000/verify/1 | grep -q "PowerCell" \
+            || { echo "::error::/verify/1 did not render the demo passport"; docker logs app; exit 1; }
+          curl -sf -o /dev/null http://localhost:3000/api/passport/products
+          docker rm -f app

@@ -1,0 +1,21 @@
+# Without this the build context is several gigabytes of node_modules, build
+# output and yarn cache — all of it either reinstalled or rebuilt inside the
+# image anyway.
+**/node_modules
+**/.next
+**/dist
+**/artifacts
+**/cache
+**/typechain-types
+**/deployments
+**/coverage
+**/data
+.yarn/cache
+.yarn/install-state.gz
+.git
+.harness/runs
+.harness/skills
+**/.env
+**/.env.local
+**/*.tsbuildinfo
+**/passport.state.json

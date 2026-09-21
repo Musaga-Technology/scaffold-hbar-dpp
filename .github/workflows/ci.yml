@@ -1,0 +1,32 @@
+# The validator command set, run on Node 20.
+#
+# These are exactly the commands `.harness/validators/yarn.json` grades, and
+# every one of them must pass with no .env, no keys and no network beyond the
+# package install.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: corepack enable
+      - run: yarn install --immutable
+
+      - run: yarn lint
+      - run: yarn next:check-types
+      - run: yarn indexer:check-types
+      - run: yarn hardhat:compile
+      - run: yarn hardhat:test
+      - run: yarn indexer:test
+      - run: yarn next:build

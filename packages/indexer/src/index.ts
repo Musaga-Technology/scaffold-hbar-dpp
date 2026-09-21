@@ -111,22 +111,24 @@ export async function runCommand(
   const store = await createStore(config);
 
   try {
-    const topicIds = await resolveTopicIds(mirror, config.topicIds, config.registryAddress);
-    if (topicIds.length === 0) {
-      out("\nNo topics to index.");
-      out("Set INDEXER_TOPIC_IDS, or point PASSPORT_REGISTRY_ADDRESS at a registry that has registered a product.");
-      return 1;
-    }
-    out(`\nTopics: ${topicIds.join(", ")}`);
+    // `replay` and `verify` are one-shot: with nothing to index there is nothing
+    // to do and a non-zero exit is the right answer.
+    if (command !== "dev") {
+      const topicIds = await resolveTopicIds(mirror, config.topicIds, config.registryAddress);
+      if (topicIds.length === 0) {
+        out("\nNo topics to index.");
+        out("Set INDEXER_TOPIC_IDS, or point PASSPORT_REGISTRY_ADDRESS at a registry that has registered a product.");
+        return 1;
+      }
+      out(`\nTopics: ${topicIds.join(", ")}`);
 
-    if (command === "verify") {
-      const report = await verifyAgainstReplay(store, mirror, topicIds);
-      out("");
-      out(formatVerifyReport(report));
-      return report.ok ? 0 : 1;
-    }
+      if (command === "verify") {
+        const report = await verifyAgainstReplay(store, mirror, topicIds);
+        out("");
+        out(formatVerifyReport(report));
+        return report.ok ? 0 : 1;
+      }
 
-    if (command === "replay") {
       out("\nDropping the index and rebuilding from sequence 1…");
       await store.reset();
       reportPoll(await pollOnce(store, mirror, topicIds), out);
@@ -138,7 +140,8 @@ export async function runCommand(
       return 0;
     }
 
-    // dev: poll, reconcile, serve, repeat until interrupted.
+    // dev is a long-running service. It serves the index API immediately and
+    // keeps polling until interrupted.
     const server = startApi(store, config.port);
     out(`\nIndex API on http://localhost:${config.port} (GET /products, /products/:serial, /stats)`);
     out(`Polling every ${config.pollMs}ms. Ctrl-C to stop.\n`);
@@ -151,10 +154,34 @@ export async function runCommand(
     process.once("SIGINT", stop);
     process.once("SIGTERM", stop);
 
+    let knownTopics: string[] = [];
+    let warnedAboutNoTopics = false;
+
     while (!stopped) {
       try {
-        reportPoll(await pollOnce(store, mirror, topicIds), out);
-        await reconcileAll(store, mirror);
+        // Topics are re-resolved every pass, not once at startup. A product
+        // registered after this process started creates a new topic, and an
+        // indexer that only looked once would never index it.
+        const topicIds = await resolveTopicIds(mirror, config.topicIds, config.registryAddress);
+
+        if (topicIds.length === 0) {
+          // Nothing to do *yet* is not a failure. Exiting here would make the
+          // container restart-loop until someone configured it, which is worse
+          // than waiting quietly for configuration to arrive.
+          if (!warnedAboutNoTopics) {
+            out("No topics to index yet. Waiting for INDEXER_TOPIC_IDS, or for a registry to register a product.");
+            warnedAboutNoTopics = true;
+          }
+        } else {
+          warnedAboutNoTopics = false;
+          const added = topicIds.filter(topic => !knownTopics.includes(topic));
+          if (added.length > 0) {
+            out(`Following ${added.length} new topic(s): ${added.join(", ")}`);
+            knownTopics = topicIds;
+          }
+          reportPoll(await pollOnce(store, mirror, topicIds), out);
+          await reconcileAll(store, mirror);
+        }
       } catch (error) {
         // A mirror node blip must not kill a long-running indexer.
         out(`  poll failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -198,7 +225,9 @@ export async function main(argv: readonly string[], out: (line: string) => void 
 
   out(describeConfig(config));
 
-  if (!hasIndexTarget(config)) {
+  // `dev` is a service and waits for configuration instead of exiting; a
+  // container that exits here would restart-loop until someone configured it.
+  if (!hasIndexTarget(config) && parsed.command !== "dev") {
     out("\nNothing to index: set INDEXER_TOPIC_IDS or PASSPORT_REGISTRY_ADDRESS.");
     out("Run `yarn passport:bootstrap` to create a demo product and write these for you.");
     return 1;

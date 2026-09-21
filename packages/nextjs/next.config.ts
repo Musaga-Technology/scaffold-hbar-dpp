@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  // Emits a self-contained server with only the traced dependencies, which is
+  // what keeps the Docker image small and lets it run without a yarn install.
+  output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../.."),
   // @sh/indexer/events ships TypeScript source and is the reference
   // implementation of the HCS event model. Only that subpath is ever imported;
