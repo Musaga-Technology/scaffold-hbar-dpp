@@ -70,10 +70,11 @@ const Verify = async ({ params }: PageProps) => {
   const manufacturer = typeof fields.manufacturer === "string" ? fields.manufacturer : undefined;
   const gtin = typeof fields.gtin === "string" ? fields.gtin : undefined;
   const discrepancies = events.filter(event => event.reconciliation === "discrepancy");
+  const demo = isDemoMode();
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10">
-      {isDemoMode() && <DemoBanner />}
+      {demo && <DemoBanner />}
 
       <header className="mb-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -116,12 +117,12 @@ const Verify = async ({ params }: PageProps) => {
               {events.length} event{events.length === 1 ? "" : "s"}, oldest first
             </span>
           </div>
-          <Timeline events={events} tokenId={product.tokenId} serial={product.serial} />
+          <Timeline events={events} tokenId={product.tokenId} serial={product.serial} demo={demo} />
         </section>
 
         <aside className="flex flex-col gap-6">
           <StatusBadge status={product.status} showBlurb />
-          <IdentifierCard product={product} />
+          <IdentifierCard product={product} demo={demo} />
           <QrPanel path={verifyPath(product.serial, gtin)} serial={product.serial} />
         </aside>
       </div>

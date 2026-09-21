@@ -26,9 +26,20 @@ import { MirrorNodeClient, type FetchLike } from "../src/mirror.js";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = path.join(HERE, "..", "test", "fixtures");
 
-const TOKEN_ID = "0.0.5005";
-const CLEAN_TOPIC = "0.0.6006";
-const FORGED_TOPIC = "0.0.6007";
+/**
+ * Entity ids for the demo fixtures.
+ *
+ * Repdigits in an unallocated range, chosen for two reasons. They do not resolve
+ * on Hedera testnet, and — more importantly — they cannot collide with somebody
+ * else's account. Plausible-looking low ids were used here originally; 0.0.1001
+ * and 0.0.3003 turned out to be real testnet accounts, so the demo passport was
+ * naming a stranger as the holder of a fictional battery. Verified 404 across
+ * accounts, tokens and topics before being adopted.
+ */
+const TOKEN_ID = "0.0.5555555555";
+const CLEAN_TOPIC = "0.0.6666666666";
+const FORGED_TOPIC = "0.0.7777777777";
+const MALFORMED_TOPIC = "0.0.8888888888";
 
 /**
  * Base instant for the fixture timeline.
@@ -40,9 +51,9 @@ const FORGED_TOPIC = "0.0.6007";
 const BASE_ISO = "2026-09-21T10:00:00Z";
 const BASE_EPOCH = Math.floor(Date.parse(BASE_ISO) / 1000);
 
-const ISSUER = "0.0.1001";
-const DISTRIBUTOR = "0.0.2002";
-const RETAILER = "0.0.3003";
+const ISSUER = "0.0.1111111111";
+const DISTRIBUTOR = "0.0.2222222222";
+const RETAILER = "0.0.3333333333";
 
 /** Consensus timestamps are seconds.nanos strings, ascending. */
 function consensusAt(offsetSeconds: number): string {
@@ -247,18 +258,18 @@ const malformedMessages = {
       running_hash: `0x${"cd".repeat(24)}`,
       running_hash_version: 3,
       sequence_number: 1,
-      topic_id: "0.0.6008",
+      topic_id: MALFORMED_TOPIC,
     },
   ],
   links: { next: null },
 };
 
 const files: Array<[string, unknown]> = [
-  ["topic-0.0.6006-messages.json", cleanMessages],
-  ["topic-0.0.6007-messages.json", forgedMessages],
-  ["topic-0.0.6008-messages.json", malformedMessages],
-  ["nft-0.0.5005-1-transactions.json", cleanTransfers],
-  ["nft-0.0.5005-2-transactions.json", forgedTransfers],
+  [`topic-${CLEAN_TOPIC}-messages.json`, cleanMessages],
+  [`topic-${FORGED_TOPIC}-messages.json`, forgedMessages],
+  [`topic-${MALFORMED_TOPIC}-messages.json`, malformedMessages],
+  [`nft-${TOKEN_ID}-1-transactions.json`, cleanTransfers],
+  [`nft-${TOKEN_ID}-2-transactions.json`, forgedTransfers],
 ];
 
 fs.mkdirSync(FIXTURE_DIR, { recursive: true });

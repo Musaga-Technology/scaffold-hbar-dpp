@@ -5,10 +5,10 @@ import type { IndexStore } from "../src/store/index.js";
 import { pollOnce, pollTopic, syncTransfers } from "../src/poller.js";
 import { createFakeMirror } from "./helpers/fakeMirror.js";
 
-const TOKEN_ID = "0.0.5005";
-const CLEAN_TOPIC = "0.0.6006";
-const FORGED_TOPIC = "0.0.6007";
-const MALFORMED_TOPIC = "0.0.6008";
+const TOKEN_ID = "0.0.5555555555";
+const CLEAN_TOPIC = "0.0.6666666666";
+const FORGED_TOPIC = "0.0.7777777777";
+const MALFORMED_TOPIC = "0.0.8888888888";
 
 describe("pollTopic", () => {
   let store: IndexStore;
@@ -178,7 +178,7 @@ describe("syncTransfers", () => {
     expect(transfers).toHaveLength(3);
     expect(transfers[0]!.isMint).toBe(true);
     expect(transfers[0]!.sender).toBeNull();
-    expect(transfers[2]!.receiver).toBe("0.0.3003");
+    expect(transfers[2]!.receiver).toBe("0.0.3333333333");
   });
 
   it("is idempotent", async () => {

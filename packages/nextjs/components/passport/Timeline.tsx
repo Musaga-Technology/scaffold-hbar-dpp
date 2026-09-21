@@ -22,14 +22,23 @@ function summarise(payload: Record<string, unknown> | null): string | undefined 
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
-const RowLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
+const RowLink = ({ href, demo, children }: { href: string; demo?: boolean; children: React.ReactNode }) => (
   <Link
     href={href}
     target="_blank"
     rel="noreferrer"
-    className="link link-hover inline-flex items-center gap-1 text-xs text-base-content/60 hover:text-primary"
+    // In demo mode the ids are illustrative and will not resolve. The link is
+    // still rendered so the shape of a real passport is visible, but it says so
+    // rather than letting someone click into an unexplained 404.
+    title={
+      demo ? "Demo data — this id is not a real entity on Hedera testnet, so HashScan will not find it" : undefined
+    }
+    className={`link link-hover inline-flex items-center gap-1 text-xs ${
+      demo ? "text-base-content/40 decoration-dotted" : "text-base-content/60 hover:text-primary"
+    }`}
   >
     {children}
+    {demo && <span className="opacity-70">(demo id)</span>}
     <ArrowTopRightOnSquareIcon className="h-3 w-3" />
   </Link>
 );
@@ -45,10 +54,13 @@ export const Timeline = ({
   events,
   tokenId,
   serial,
+  demo = false,
 }: {
   events: PassportEventRow[];
   tokenId: string;
   serial: number;
+  /** True when the rows come from bundled fixtures, so ids do not resolve. */
+  demo?: boolean;
 }) => {
   if (events.length === 0) {
     return (
@@ -112,9 +124,13 @@ export const Timeline = ({
                 )}
 
                 <div className="mt-2 flex flex-wrap gap-3">
-                  <RowLink href={link.href}>{link.label} on HashScan</RowLink>
+                  <RowLink href={link.href} demo={demo}>
+                    {link.label} on HashScan
+                  </RowLink>
                   {event.type === "custody.transferred" && (
-                    <RowLink href={hashscan.serial(tokenId, serial)}>NFT serial</RowLink>
+                    <RowLink href={hashscan.serial(tokenId, serial)} demo={demo}>
+                      NFT serial
+                    </RowLink>
                   )}
                 </div>
               </div>

@@ -6,9 +6,9 @@ import { createMemoryStore } from "../src/store/index.js";
 import type { EventRow, IndexStore, NftTransferRow } from "../src/store/index.js";
 import { createFakeMirror } from "./helpers/fakeMirror.js";
 
-const TOKEN_ID = "0.0.5005";
-const CLEAN_TOPIC = "0.0.6006";
-const FORGED_TOPIC = "0.0.6007";
+const TOKEN_ID = "0.0.5555555555";
+const CLEAN_TOPIC = "0.0.6666666666";
+const FORGED_TOPIC = "0.0.7777777777";
 
 /** Builds an event row with sensible defaults, overridden per test. */
 function event(overrides: Partial<EventRow> = {}): EventRow {
@@ -20,8 +20,8 @@ function event(overrides: Partial<EventRow> = {}): EventRow {
     serial: 1,
     tokenId: TOKEN_ID,
     type: "custody.transferred",
-    actor: "0.0.1001",
-    payloadJson: JSON.stringify({ from: "0.0.1001", to: "0.0.2002" }),
+    actor: "0.0.1111111111",
+    payloadJson: JSON.stringify({ from: "0.0.1111111111", to: "0.0.2222222222" }),
     payloadHash: "a".repeat(64),
     ref: null,
     hashValid: true,
@@ -39,9 +39,9 @@ function transfer(overrides: Partial<NftTransferRow> = {}): NftTransferRow {
     tokenId: TOKEN_ID,
     serial: 1,
     consensusTimestamp: "1000.000000000",
-    sender: "0.0.1001",
-    receiver: "0.0.2002",
-    transactionId: "0.0.1001@1000.000000000",
+    sender: "0.0.1111111111",
+    receiver: "0.0.2222222222",
+    transactionId: "0.0.1111111111@1000.000000000",
     isMint: false,
     ...overrides,
   };
@@ -49,7 +49,7 @@ function transfer(overrides: Partial<NftTransferRow> = {}): NftTransferRow {
 
 describe("reconcileSerial", () => {
   it("reconciles a custody claim that names its transaction", () => {
-    const { verdicts, status } = reconcileSerial([event({ ref: "0.0.1001@1000.000000000" })], [transfer()]);
+    const { verdicts, status } = reconcileSerial([event({ ref: "0.0.1111111111@1000.000000000" })], [transfer()]);
 
     expect(verdicts[0]!.reconciliation).toBe("reconciled");
     expect(status).toBe("verified");
@@ -70,7 +70,7 @@ describe("reconcileSerial", () => {
 
   it("flags a claim whose parties disagree with the chain", () => {
     const { verdicts } = reconcileSerial(
-      [event({ ref: null, payloadJson: JSON.stringify({ from: "0.0.1001", to: "0.0.9999" }) })],
+      [event({ ref: null, payloadJson: JSON.stringify({ from: "0.0.1111111111", to: "0.0.9999" }) })],
       [transfer()],
     );
     expect(verdicts[0]!.reconciliation).toBe("discrepancy");
@@ -92,7 +92,7 @@ describe("reconcileSerial", () => {
 
   it("treats an altered payload as a discrepancy above all other checks", () => {
     const { verdicts, status } = reconcileSerial(
-      [event({ hashValid: false, ref: "0.0.1001@1000.000000000" })],
+      [event({ hashValid: false, ref: "0.0.1111111111@1000.000000000" })],
       [transfer()],
     );
 
@@ -158,7 +158,7 @@ describe("reconcileSerial", () => {
   it("lets one discrepancy outrank many good claims", () => {
     const { status } = reconcileSerial(
       [
-        event({ sequenceNumber: 1, ref: "0.0.1001@1000.000000000" }),
+        event({ sequenceNumber: 1, ref: "0.0.1111111111@1000.000000000" }),
         event({ sequenceNumber: 2, ref: null, payloadJson: JSON.stringify({ from: "0.0.1", to: "0.0.2" }) }),
       ],
       [transfer()],
@@ -170,11 +170,11 @@ describe("reconcileSerial", () => {
     const { currentHolder } = reconcileSerial(
       [event()],
       [
-        transfer({ consensusTimestamp: "900.000000000", isMint: true, sender: null, receiver: "0.0.1001" }),
-        transfer({ consensusTimestamp: "1000.000000000", receiver: "0.0.2002" }),
+        transfer({ consensusTimestamp: "900.000000000", isMint: true, sender: null, receiver: "0.0.1111111111" }),
+        transfer({ consensusTimestamp: "1000.000000000", receiver: "0.0.2222222222" }),
       ],
     );
-    expect(currentHolder).toBe("0.0.2002");
+    expect(currentHolder).toBe("0.0.2222222222");
   });
 });
 
@@ -221,7 +221,7 @@ describe("reconcileAll against recorded fixtures", () => {
 
     const product = await store.getProduct(1);
     expect(product?.status).toBe("verified");
-    expect(product?.currentHolder).toBe("0.0.3003");
+    expect(product?.currentHolder).toBe("0.0.3333333333");
     expect(product?.lastReconciledAt).toBeTruthy();
   });
 

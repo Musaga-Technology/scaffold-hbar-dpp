@@ -9,8 +9,8 @@ import type { IndexStore } from "../src/store/index.js";
 import { formatVerifyReport, verifyAgainstReplay } from "../src/verify.js";
 import { createFakeMirror } from "./helpers/fakeMirror.js";
 
-const CLEAN_TOPIC = "0.0.6006";
-const FORGED_TOPIC = "0.0.6007";
+const CLEAN_TOPIC = "0.0.6666666666";
+const FORGED_TOPIC = "0.0.7777777777";
 const TOPICS = [CLEAN_TOPIC, FORGED_TOPIC];
 
 describe("verifyAgainstReplay", () => {
@@ -178,7 +178,7 @@ describe("topic discovery", () => {
   const TOPIC0 = "0x03f4aef151c70745f44693f202360f2e4b8c4a7d4b13373a9fb6f9ccfab2bb2a";
 
   it("decodes a topic id out of the log body", () => {
-    expect(decodeProductRegisteredData(encodeLogData("0.0.6006"))).toBe("0.0.6006");
+    expect(decodeProductRegisteredData(encodeLogData("0.0.6666666666"))).toBe("0.0.6666666666");
   });
 
   it("returns nothing for data that is not shaped like the event", () => {
@@ -191,14 +191,14 @@ describe("topic discovery", () => {
     const discovered = decodeRegistryLogs([
       {
         address: "0xreg",
-        data: encodeLogData("0.0.6006"),
+        data: encodeLogData("0.0.6666666666"),
         topics: [TOPIC0, `0x${"0".repeat(63)}1`, `0x${"0".repeat(24)}${"11".repeat(20)}`],
         consensus_timestamp: "1000.000000000",
       },
     ]);
 
     expect(discovered).toHaveLength(1);
-    expect(discovered[0]).toMatchObject({ serial: 1, topicId: "0.0.6006" });
+    expect(discovered[0]).toMatchObject({ serial: 1, topicId: "0.0.6666666666" });
     expect(discovered[0]!.issuer).toBe(`0x${"11".repeat(20)}`);
   });
 
@@ -207,7 +207,7 @@ describe("topic discovery", () => {
       decodeRegistryLogs([
         {
           address: "0xreg",
-          data: encodeLogData("0.0.6006"),
+          data: encodeLogData("0.0.6666666666"),
           topics: [`0x${"ff".repeat(32)}`, `0x${"0".repeat(63)}1`],
           consensus_timestamp: "1000.000000000",
         },
@@ -235,13 +235,13 @@ describe("topic discovery", () => {
         logs: [
           {
             address: "0xreg",
-            data: encodeLogData("0.0.6006"),
+            data: encodeLogData("0.0.6666666666"),
             topics: [TOPIC0, `0x${"0".repeat(63)}1`],
             consensus_timestamp: "1000.000000000",
           },
           {
             address: "0xreg",
-            data: encodeLogData("0.0.6007"),
+            data: encodeLogData("0.0.7777777777"),
             topics: [TOPIC0, `0x${"0".repeat(63)}2`],
             consensus_timestamp: "1001.000000000",
           },
@@ -249,6 +249,6 @@ describe("topic discovery", () => {
       },
     });
 
-    expect(await resolveTopicIds(client, [], "0xregistry")).toEqual(["0.0.6006", "0.0.6007"]);
+    expect(await resolveTopicIds(client, [], "0xregistry")).toEqual(["0.0.6666666666", "0.0.7777777777"]);
   });
 });
