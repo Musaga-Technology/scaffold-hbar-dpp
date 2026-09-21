@@ -1,0 +1,160 @@
+{
+  "$comment": "Shared conformance vectors for the passport event model. Every implementation in this repo asserts against these. Regenerate only when the event schema version changes - editing them invalidates every payload hash already written to a topic.",
+  "schemaVersion": 1,
+  "canonicalize": [
+    {
+      "name": "sorts object keys",
+      "value": {
+        "b": 1,
+        "a": 2
+      },
+      "canonical": "{\"a\":2,\"b\":1}"
+    },
+    {
+      "name": "sorts nested object keys",
+      "value": {
+        "z": {
+          "y": 1,
+          "x": 2
+        },
+        "a": 3
+      },
+      "canonical": "{\"a\":3,\"z\":{\"x\":2,\"y\":1}}"
+    },
+    {
+      "name": "preserves array order",
+      "value": [
+        3,
+        1,
+        2
+      ],
+      "canonical": "[3,1,2]"
+    },
+    {
+      "name": "sorts keys inside arrays",
+      "value": [
+        {
+          "b": 1,
+          "a": 2
+        }
+      ],
+      "canonical": "[{\"a\":2,\"b\":1}]"
+    },
+    {
+      "name": "keeps explicit nulls",
+      "value": {
+        "a": null
+      },
+      "canonical": "{\"a\":null}"
+    },
+    {
+      "name": "escapes unicode per JSON",
+      "value": {
+        "note": "Gdansk \u2014 caf\u00e9"
+      },
+      "canonical": "{\"note\":\"Gdansk \u2014 caf\u00e9\"}"
+    },
+    {
+      "name": "handles empty object",
+      "value": {},
+      "canonical": "{}"
+    },
+    {
+      "name": "handles numbers and booleans",
+      "value": {
+        "n": 1.5,
+        "t": true,
+        "f": false
+      },
+      "canonical": "{\"f\":false,\"n\":1.5,\"t\":true}"
+    }
+  ],
+  "payloadHash": [
+    {
+      "name": "inspection payload",
+      "payload": {
+        "result": "pass",
+        "inspector": "TUV Rheinland"
+      },
+      "canonical": "{\"inspector\":\"TUV Rheinland\",\"result\":\"pass\"}",
+      "payloadHash": "ba37150f4cd56e95ce716eed85afa5ab4ce98dc92d2771b9df29f02d5c4a8e1f"
+    },
+    {
+      "name": "same payload, different key order",
+      "payload": {
+        "inspector": "TUV Rheinland",
+        "result": "pass"
+      },
+      "canonical": "{\"inspector\":\"TUV Rheinland\",\"result\":\"pass\"}",
+      "payloadHash": "ba37150f4cd56e95ce716eed85afa5ab4ce98dc92d2771b9df29f02d5c4a8e1f"
+    },
+    {
+      "name": "custody payload",
+      "payload": {
+        "from": "0xaaa",
+        "to": "0xbbb"
+      },
+      "canonical": "{\"from\":\"0xaaa\",\"to\":\"0xbbb\"}",
+      "payloadHash": "d13e2bd9dee71074e7f5c91cec43df3308c9a3bf946005c2e2f236c01b79bd1b"
+    },
+    {
+      "name": "empty payload",
+      "payload": {},
+      "canonical": "{}",
+      "payloadHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    }
+  ],
+  "events": [
+    {
+      "name": "minimal inspected event",
+      "input": {
+        "type": "product.inspected",
+        "serial": 1,
+        "tokenId": "0.0.5005",
+        "actor": "0xabc",
+        "payload": {
+          "result": "pass"
+        },
+        "ts": "2026-09-21T10:00:00.000Z"
+      },
+      "message": "{\"actor\":\"0xabc\",\"payload\":{\"result\":\"pass\"},\"payloadHash\":\"96d76c7af1675073cf95e0f4b26015864dda6f761d129b5d79875d1cef4d475e\",\"serial\":1,\"tokenId\":\"0.0.5005\",\"ts\":\"2026-09-21T10:00:00.000Z\",\"type\":\"product.inspected\",\"v\":1}",
+      "payloadHash": "96d76c7af1675073cf95e0f4b26015864dda6f761d129b5d79875d1cef4d475e",
+      "bytes": 223
+    },
+    {
+      "name": "custody event with ref and prev",
+      "input": {
+        "type": "custody.transferred",
+        "serial": 2,
+        "tokenId": "0.0.5005",
+        "actor": "0.0.1234",
+        "payload": {
+          "from": "0xaaa",
+          "to": "0xbbb"
+        },
+        "ref": "0.0.1234@1758448800.000000000",
+        "prev": 4,
+        "ts": "2026-09-21T10:05:00.000Z"
+      },
+      "message": "{\"actor\":\"0.0.1234\",\"payload\":{\"from\":\"0xaaa\",\"to\":\"0xbbb\"},\"payloadHash\":\"d13e2bd9dee71074e7f5c91cec43df3308c9a3bf946005c2e2f236c01b79bd1b\",\"prev\":4,\"ref\":\"0.0.1234@1758448800.000000000\",\"serial\":2,\"tokenId\":\"0.0.5005\",\"ts\":\"2026-09-21T10:05:00.000Z\",\"type\":\"custody.transferred\",\"v\":1}",
+      "payloadHash": "d13e2bd9dee71074e7f5c91cec43df3308c9a3bf946005c2e2f236c01b79bd1b",
+      "bytes": 287
+    },
+    {
+      "name": "custom event type",
+      "input": {
+        "type": "custom.state_of_health",
+        "serial": 3,
+        "tokenId": "0.0.5005",
+        "actor": "0xabc",
+        "payload": {
+          "sohPct": 98.4
+        },
+        "ts": "2026-09-21T10:10:00.000Z"
+      },
+      "message": "{\"actor\":\"0xabc\",\"payload\":{\"sohPct\":98.4},\"payloadHash\":\"06267e809462cbdc09b29fedb7556071f722f5ebdcf2d3788aa43d6ce3841c1b\",\"serial\":3,\"tokenId\":\"0.0.5005\",\"ts\":\"2026-09-21T10:10:00.000Z\",\"type\":\"custom.state_of_health\",\"v\":1}",
+      "payloadHash": "06267e809462cbdc09b29fedb7556071f722f5ebdcf2d3788aa43d6ce3841c1b",
+      "bytes": 226
+    }
+  ]
+}
