@@ -59,6 +59,49 @@ yarn next:start                   # then open http://localhost:3000/verify/1
 
 `yarn passport:bootstrap` is idempotent. If it fails halfway — an unfunded account, a fee set too low — fix the cause and run it again; finished steps are skipped and not paid for twice.
 
+### Wait — did that register a passport?
+
+Yes. **`passport:bootstrap` registers one demo product for you**, so the system
+has something in it the moment it comes up. When it finishes you already own a
+live passport on Hedera testnet: serial 1, with a topic carrying its first three
+lifecycle events. `http://localhost:3000/verify/1` is that product, not a fixture.
+
+**To register your own products, use the issuer page** at
+`http://localhost:3000/issuer`. Connect a wallet, choose a category, fill in the
+form, press Register. Behind that button the app creates an HCS topic, mints a
+serial against it and writes the first event — the same three steps the
+bootstrap performs, driven by you instead of by a script.
+
+So: the bootstrap proves the pipeline works end to end and gives you something
+to look at. The issuer page is how the template is actually used.
+
+| | Registers | Who runs it |
+| --- | --- | --- |
+| `yarn passport:bootstrap` | one demo product, once | you, from the terminal, during setup |
+| `/issuer` | any product, any category | an issuer, with a wallet, from then on |
+
+### Proof it works on Hedera testnet
+
+This template was bootstrapped against Hedera testnet on 21 September 2026. Every
+link below is a real entity you can open right now:
+
+| What | Link |
+| --- | --- |
+| Registry contract | [`0xCBc3089c…5f22D5a7A`](https://hashscan.io/testnet/contract/0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A) |
+| NFT collection | [`0.0.10649382`](https://hashscan.io/testnet/token/0.0.10649382) — "Product Passports (PASS)" |
+| Passport serial 1 | [`0.0.10649382/1`](https://hashscan.io/testnet/token/0.0.10649382/1) |
+| Lifecycle topic | [`0.0.10649383`](https://hashscan.io/testnet/topic/0.0.10649383) — 3 messages |
+| `registerProduct` transaction | [`0x023ba5e3…e5cd9ec9`](https://hashscan.io/testnet/transaction/0x023ba5e33654f254df71fd2ebb1db2dc79ce18ee18e1557843b0a834e5cd9ec9) |
+
+The topic carries `product.registered`, `product.shipped` and
+`product.inspected`, in consensus order, each hash-anchored. Read them straight
+from the mirror node without trusting this README:
+
+```bash
+curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10649383/messages?order=asc" \
+  | jq -r '.messages[] | "\(.sequence_number) \(.message|@base64d)"'
+```
+
 ### Or explore it first, with no account at all
 
 ```bash
