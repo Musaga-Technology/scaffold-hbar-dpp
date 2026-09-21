@@ -34,7 +34,8 @@ These are not style preferences. Breaking one breaks the template's premise.
 | `packages/indexer/src/events/attachments.ts` | The attachment reference model, shared with the app |
 | `packages/nextjs/services/storage/` | Pinning provider interface; Pinata is the default |
 | `packages/nextjs/app/verify/[serial]/` | Public passport page — no wallet, no env |
-| `packages/nextjs/app/api/passport/` | Server routes: topics, events, index queries |
+| `packages/nextjs/app/api/passport/` | Server routes: topics, events, attachments, metadata, airdrop, index queries |
+| `packages/nextjs/services/registry.ts` | Server-side reads of the registry; where the event-logger allow-list is enforced |
 | `packages/nextjs/contracts/deployedContracts.ts` | Generated on deploy — do not hand-edit |
 | `schemas/passport-event.schema.json` | The HCS message contract |
 | `schemas/categories/` | One file per product category |

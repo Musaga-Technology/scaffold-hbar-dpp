@@ -313,6 +313,43 @@ not a Vercel-specific limitation.
 Deployment is always an explicit command after funding — never a side effect of
 scaffolding or CI.
 
+## Getting a passport to the person who bought the product
+
+A passport that only the issuer can hold is a database with extra steps. The
+point is that the buyer ends up holding the record of the thing they bought.
+
+On Hedera that normally runs into token association: a receiver must associate a
+token before they can hold it, which means asking a consumer to perform a
+blockchain operation before you can give them anything. **HIP-904 removes that
+step**, and it is the reason this journey works:
+
+```
+POST /api/passport/airdrop   { tokenId, serial, receiver }
+```
+
+The receiver can be a `0.0.x` account id or an EVM address that already has an
+account. Two outcomes, and the app reports them differently because they mean
+different things:
+
+| Outcome | What it means |
+| --- | --- |
+| **Delivered** | The receiver had an automatic-association slot free. They hold the passport now. |
+| **Pending** | Parked as a pending airdrop. They hold **nothing** until they claim it. |
+
+Collapsing those into one tick would tell an issuer their customer has something
+when they do not.
+
+**Claiming happens in the consumer's wallet, not here.** A claim must be signed
+by the receiver's own key; this app holds an operator key, which is a different
+account. `/my-passports` shows what is waiting and links each one to its
+passport page so it can be inspected *before* being accepted — but the claim
+itself belongs to HashPack, Blade, or whatever the consumer uses.
+
+There is a second path on the contract. `airdropPassport` performs a direct
+`transferNFT` from the registry treasury, which is simpler but requires the
+receiver to already be associated. It exists as the documented fallback for
+networks where HIP-904 is unavailable.
+
 ## Environment variables
 
 Nothing here is required to explore the template. Every variable below is for
