@@ -1,0 +1,272 @@
+import { expect } from "chai";
+import { ethers } from "hardhat";
+
+describe("SubscriptionMarketplace", function () {
+  const DAY = 24 * 60 * 60;
+
+  const alignToDay = (timestamp: number): bigint => {
+    const aligned = timestamp - (timestamp % DAY);
+    return BigInt(aligned);
+  };
+
+  async function deployFixture() {
+    const [deployer, owner, renterA, renterB, provider] = await ethers.getSigners();
+
+    // Deploy MockHTS for testing (works with both local and forked networks)
+    const MockHTS = await ethers.getContractFactory("MockHTS");
+    const mockHTS = await MockHTS.deploy();
+    await mockHTS.waitForDeployment();
+    const htsAddress = await mockHTS.getAddress();
+
+    // Deploy SubscriptionNFT with mock HTS
+    const SubscriptionNFT = await ethers.getContractFactory("SubscriptionNFT");
+    const subscriptionNFT = await SubscriptionNFT.deploy(owner.address, htsAddress);
+    await subscriptionNFT.waitForDeployment();
+
+    await subscriptionNFT.connect(owner).createCollection("Subscriptions", "SUB", "Rental template");
+
+    const now = (await ethers.provider.getBlock("latest"))!.timestamp;
+    const dayBase = alignToDay(now);
+    const startDate = dayBase + 10n * BigInt(DAY);
+    const endDate = dayBase + 120n * BigInt(DAY);
+    // Use a separate provider address for royalty payments
+    await subscriptionNFT
+      .connect(owner)
+      .mintSubscription(provider.address, "Anytime Fitness", "Premium", startDate, endDate);
+
+    const Marketplace = await ethers.getContractFactory("SubscriptionMarketplace");
+    const marketplaceFeeBps = 500; // 5%
+    const marketplace = await Marketplace.deploy(
+      deployer.address,
+      await subscriptionNFT.getAddress(),
+      marketplaceFeeBps,
+    );
+    await marketplace.waitForDeployment();
+
+    return { subscriptionNFT, marketplace, deployer, owner, renterA, renterB, provider, startDate, endDate };
+  }
+
+  describe("availability", function () {
+    it("allows current owner to create availability and rejects overlap", async function () {
+      const { marketplace, owner, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 20n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+
+      await expect(marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay)).to.emit(
+        marketplace,
+        "AvailabilityCreated",
+      );
+
+      await expect(
+        marketplace
+          .connect(owner)
+          .createAvailability(1n, windowStart + 5n * BigInt(DAY), windowEnd + 5n * BigInt(DAY), pricePerDay),
+      ).to.be.revertedWithCustomError(marketplace, "OverlappingAvailability");
+    });
+
+    it("rejects non-owner availability creation", async function () {
+      const { marketplace, renterA, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+
+      await expect(
+        marketplace.connect(renterA).createAvailability(1n, windowStart, windowEnd, pricePerDay),
+      ).to.be.revertedWithCustomError(marketplace, "UnauthorizedSubscriptionOwner");
+    });
+
+    it("allows new NFT owner to update and remove existing availability after transfer", async function () {
+      const { marketplace, subscriptionNFT, owner, renterB, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      const collectionAddress = await subscriptionNFT.collectionAddress();
+      // Owner transfers subscription NFT serial #1 to renterB.
+      const collectionAsErc721: any = new ethers.Contract(
+        collectionAddress,
+        ["function transferFrom(address from, address to, uint256 tokenId) external"],
+        owner,
+      );
+      await collectionAsErc721.transferFrom(owner.address, renterB.address, 1n);
+
+      // Previous owner should no longer be allowed to manage availability.
+      await expect(
+        marketplace.connect(owner).updateAvailability(1n, ethers.parseEther("0.2")),
+      ).to.be.revertedWithCustomError(marketplace, "UnauthorizedSubscriptionOwner");
+
+      // New owner can update and remove.
+      await expect(marketplace.connect(renterB).updateAvailability(1n, ethers.parseEther("0.2"))).to.emit(
+        marketplace,
+        "AvailabilityPriceUpdated",
+      );
+      await expect(marketplace.connect(renterB).removeAvailability(1n)).to.emit(marketplace, "AvailabilityRemoved");
+    });
+  });
+
+  describe("booking", function () {
+    it("books consecutive days with exact payment and rejects overlap", async function () {
+      const { marketplace, owner, renterA, renterB, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 20n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      const firstBookingStart = windowStart;
+      const firstBookingDays = 3n;
+      const firstPayment = pricePerDay * firstBookingDays;
+
+      await expect(
+        marketplace.connect(renterA).book(1n, firstBookingStart, firstBookingDays, { value: firstPayment }),
+      ).to.emit(marketplace, "Booked");
+
+      await expect(
+        marketplace.connect(renterB).book(1n, firstBookingStart + 1n * BigInt(DAY), 2n, { value: pricePerDay * 2n }),
+      ).to.be.revertedWithCustomError(marketplace, "OverlappingBooking");
+    });
+
+    it("rejects incorrect payment", async function () {
+      const { marketplace, owner, renterA, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      await expect(
+        marketplace.connect(renterA).book(1n, windowStart, 2n, { value: pricePerDay }),
+      ).to.be.revertedWithCustomError(marketplace, "IncorrectPayment");
+    });
+  });
+
+  describe("userOf", function () {
+    it("returns renter only during active booked period", async function () {
+      const { marketplace, owner, renterA, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      await marketplace.connect(renterA).book(1n, windowStart, 2n, { value: pricePerDay * 2n });
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(windowStart) - 10]);
+      await ethers.provider.send("evm_mine", []);
+      expect(await marketplace.userOf(1n)).to.equal(ethers.ZeroAddress);
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(windowStart) + 1]);
+      await ethers.provider.send("evm_mine", []);
+      expect(await marketplace.userOf(1n)).to.equal(renterA.address);
+
+      const bookingEnd = windowStart + 2n * BigInt(DAY);
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(bookingEnd) + 1]);
+      await ethers.provider.send("evm_mine", []);
+      expect(await marketplace.userOf(1n)).to.equal(ethers.ZeroAddress);
+    });
+  });
+
+  describe("cancellation and payouts", function () {
+    it("refunds full amount when renter cancels before booking start", async function () {
+      const { marketplace, owner, renterA, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      const totalPaid = pricePerDay * 3n;
+      await marketplace.connect(renterA).book(1n, windowStart, 3n, { value: totalPaid });
+
+      await expect(marketplace.connect(renterA).cancelBooking(1n))
+        .to.emit(marketplace, "BookingCancelled")
+        .withArgs(1n, renterA.address, totalPaid);
+    });
+
+    it("allows owner to claim payout after booking start and accrues fee with provider royalty", async function () {
+      const { marketplace, owner, renterA, provider, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      const totalPaid = pricePerDay * 2n; // 2 ETH
+      await marketplace.connect(renterA).book(1n, windowStart, 2n, { value: totalPaid });
+
+      // Can't claim before start.
+      await expect(marketplace.connect(owner).claimBookingPayout(1n)).to.be.revertedWithCustomError(
+        marketplace,
+        "PayoutNotAvailableYet",
+      );
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(windowStart) + 1]);
+      await ethers.provider.send("evm_mine", []);
+
+      // Track provider balance change (provider is separate from owner)
+      const providerBalanceBefore = await ethers.provider.getBalance(provider.address);
+
+      await expect(marketplace.connect(owner).claimBookingPayout(1n)).to.emit(marketplace, "BookingPayoutClaimed");
+
+      // 5% marketplace fee on 2 ETH = 0.1 ETH
+      expect(await marketplace.accruedMarketplaceFees()).to.equal(ethers.parseEther("0.1"));
+
+      // 5% provider fee on 2 ETH = 0.1 ETH
+      const providerBalanceAfter = await ethers.provider.getBalance(provider.address);
+      expect(providerBalanceAfter - providerBalanceBefore).to.equal(ethers.parseEther("0.1"));
+    });
+
+    it("routes payout claim to current NFT owner after transfer", async function () {
+      const { marketplace, subscriptionNFT, owner, renterA, renterB, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      const totalPaid = pricePerDay * 2n;
+      await marketplace.connect(renterA).book(1n, windowStart, 2n, { value: totalPaid });
+
+      // Transfer NFT ownership before booking start.
+      const collectionAddress = await subscriptionNFT.collectionAddress();
+      const collectionAsErc721: any = new ethers.Contract(
+        collectionAddress,
+        ["function transferFrom(address from, address to, uint256 tokenId) external"],
+        owner,
+      );
+      await collectionAsErc721.transferFrom(owner.address, renterB.address, 1n);
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(windowStart) + 1]);
+      await ethers.provider.send("evm_mine", []);
+
+      // Previous owner cannot claim anymore.
+      await expect(marketplace.connect(owner).claimBookingPayout(1n)).to.be.revertedWithCustomError(
+        marketplace,
+        "UnauthorizedSubscriptionOwner",
+      );
+
+      // New owner can claim and receives payout.
+      // 2 ETH total: 90% owner (1.8 ETH), 5% marketplace (0.1 ETH), 5% provider (0.1 ETH)
+      await expect(marketplace.connect(renterB).claimBookingPayout(1n))
+        .to.emit(marketplace, "BookingPayoutClaimed")
+        .withArgs(1n, renterB.address, ethers.parseEther("1.8"), ethers.parseEther("0.1"), ethers.parseEther("0.1"));
+    });
+  });
+
+  describe("expired booking handling", function () {
+    it("allows removing availability after booked window has fully expired", async function () {
+      const { marketplace, owner, renterA, startDate } = await deployFixture();
+      const windowStart = startDate + 10n * BigInt(DAY);
+      const windowEnd = windowStart + 10n * BigInt(DAY);
+      const pricePerDay = ethers.parseEther("0.1");
+      await marketplace.connect(owner).createAvailability(1n, windowStart, windowEnd, pricePerDay);
+
+      // Book first 2 days in the availability.
+      await marketplace.connect(renterA).book(1n, windowStart, 2n, { value: pricePerDay * 2n });
+
+      // Move after booking end so the booking is considered expired.
+      const bookingEnd = windowStart + 2n * BigInt(DAY);
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(bookingEnd) + 1]);
+      await ethers.provider.send("evm_mine", []);
+
+      // Should now be removable because expired bookings are ignored.
+      await expect(marketplace.connect(owner).removeAvailability(1n)).to.emit(marketplace, "AvailabilityRemoved");
+    });
+  });
+});
