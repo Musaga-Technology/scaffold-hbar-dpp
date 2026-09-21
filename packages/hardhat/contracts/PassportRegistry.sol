@@ -291,11 +291,19 @@ contract PassportRegistry is Ownable {
     }
 
     /// @notice Grants or revokes permission to log lifecycle events for a serial.
-    /// @dev HCS topics are append-only and this contract cannot police them. The
-    ///      allow-list is enforced by the server route that holds the topic's
-    ///      submit key: it refuses to submit for an account that is not listed
-    ///      here. Treat it as authorisation for the app, not for the ledger — any
-    ///      holder of the submit key can always write to the topic directly.
+    /// @dev HCS topics are append-only and this contract cannot police them, so
+    ///      this list is enforced off-chain by whoever holds the topic's submit
+    ///      key. In this template that is the `POST /api/passport/events` route,
+    ///      which reads `isEventLogger` before submitting and returns 403 when
+    ///      the actor is not listed.
+    ///
+    ///      Be clear about the strength of that guarantee: it is authorisation
+    ///      for the app, not for the ledger. Anyone holding the submit key can
+    ///      write to the topic directly and bypass this entirely. It stops an
+    ///      unauthorised *user of this app* from logging events; it does not and
+    ///      cannot stop the key holder. If a deployment needs a stronger
+    ///      property, give each logger its own submit key rather than relying on
+    ///      this list.
     /// @param serial Serial the permission applies to.
     /// @param account Account to update.
     /// @param allowed True to allow the account to log events for the serial.

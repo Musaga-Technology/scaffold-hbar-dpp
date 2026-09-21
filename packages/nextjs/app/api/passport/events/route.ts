@@ -10,6 +10,7 @@ import {
   validateLogEventRequest,
 } from "~~/lib/events";
 import { OperatorUnavailableError, createOperatorClient } from "~~/services/hederaClient";
+import { checkEventLogger } from "~~/services/registry";
 
 /** Request body for appending a lifecycle event to a product's topic. */
 interface SubmitEventRequest extends LogEventRequest {
@@ -30,6 +31,12 @@ interface SubmitEventRequest extends LogEventRequest {
  *     is the contract every other reader of this topic relies on.
  *
  * Nothing is signed or submitted until all three pass.
+ *
+ * Then the registry's `setEventLogger` allow-list is enforced — this route is
+ * the only place it *can* be, since it holds the topic's submit key and HCS
+ * itself is append-only. When no registry is configured the check is skipped,
+ * and the response says so rather than letting "allowed" and "not checked" look
+ * identical.
  */
 export async function POST(request: Request) {
   return guard(async () => {
@@ -80,6 +87,14 @@ export async function POST(request: Request) {
       return fail("invalid_request", "Event does not satisfy passport-event.schema.json.", schemaIssues);
     }
 
+    // The registry's allow-list is only meaningful if someone enforces it. HCS
+    // is append-only and the contract cannot police it, so the holder of the
+    // topic's submit key is the only party who can — and that is this server.
+    const logger = await checkEventLogger(body.serial, body.actor);
+    if (!logger.allowed) {
+      return fail("not_permitted", logger.reason);
+    }
+
     let client;
     let operator;
     try {
@@ -105,6 +120,10 @@ export async function POST(request: Request) {
           bytes: Buffer.byteLength(message, "utf8"),
           payloadHash: event.payloadHash,
           network: operator.network,
+          // Say whether the allow-list was actually consulted. "Allowed" and
+          // "not checked" must not look the same to a caller.
+          allowListEnforced: logger.enforced,
+          ...(logger.reason ? { allowListNote: logger.reason } : {}),
         },
         201,
       );

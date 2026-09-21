@@ -8,8 +8,12 @@
  * caller-supplied input, before anything is signed or submitted.
  */
 import eventSchema from "../../../schemas/passport-event.schema.json";
-import Ajv, { type ErrorObject, type ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
+// `ajv` defaults to draft-07. passport-event.schema.json declares draft
+// 2020-12, and the default export refuses it at compile time with an error
+// about an unknown $schema — which only surfaces once a payload gets far
+// enough to be schema-checked at all.
+import Ajv2020, { type ErrorObject, type ValidateFunction } from "ajv/dist/2020";
 
 export {
   BUILT_IN_EVENT_TYPES,
@@ -40,7 +44,7 @@ let cachedValidator: ValidateFunction | undefined;
 /** Compiles the event schema once per process. */
 function validator(): ValidateFunction {
   if (!cachedValidator) {
-    const ajv = new Ajv({ allErrors: true, strict: false });
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
     addFormats(ajv);
     cachedValidator = ajv.compile(eventSchema);
   }

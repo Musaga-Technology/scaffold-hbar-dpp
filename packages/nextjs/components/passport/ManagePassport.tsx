@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SendToConsumer } from "./SendToConsumer";
 import { isAddress } from "viem";
 import { useAccount } from "wagmi";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-hbar";
@@ -183,6 +184,8 @@ export const ManagePassport = ({
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {/* Placed alongside custody transfer because they are the two ways a
+          passport changes hands, and an issuer should see the choice. */}
       <form onSubmit={logEvent} className="rounded-2xl border border-base-300 bg-base-100 p-6">
         <h2 className="mb-1 mt-0 text-lg font-bold">Log a lifecycle event</h2>
         <p className="mb-4 mt-0 text-sm text-base-content/60">
@@ -311,6 +314,8 @@ export const ManagePassport = ({
           Only the current holder can transfer. The contract enforces this; the wallet you connect must be the holder.
         </p>
       </form>
+
+      <SendToConsumer serial={serial} tokenId={tokenId} />
     </div>
   );
 };

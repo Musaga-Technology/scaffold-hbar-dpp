@@ -16,6 +16,7 @@ export type ErrorCode =
   | "embedded_content"
   | "index_unavailable"
   | "storage_unavailable"
+  | "not_permitted"
   | "internal";
 
 export interface ErrorBody {
@@ -32,6 +33,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   embedded_content: 422,
   index_unavailable: 503,
   storage_unavailable: 503,
+  not_permitted: 403,
   internal: 500,
 };
 
