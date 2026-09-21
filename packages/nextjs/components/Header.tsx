@@ -4,15 +4,7 @@ import React, { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Bars3Icon,
-  BugAntIcon,
-  CalendarDaysIcon,
-  CurrencyDollarIcon,
-  PlusCircleIcon,
-  ShoppingBagIcon,
-  TicketIcon,
-} from "@heroicons/react/24/outline";
+import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-hbar";
 import { useOutsideClick } from "~~/hooks/scaffold-hbar";
 
@@ -22,35 +14,14 @@ type HeaderMenuLink = {
   icon?: React.ReactNode;
 };
 
+/**
+ * Navigation entries. The issuer, my-passports and verify routes are added in
+ * increment 03 alongside the pages themselves, so every link here resolves.
+ */
 export const menuLinks: HeaderMenuLink[] = [
   {
     label: "Home",
     href: "/",
-  },
-  {
-    label: "Rentals",
-    href: "/marketplace",
-    icon: <ShoppingBagIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Sales",
-    href: "/sales",
-    icon: <CurrencyDollarIcon className="h-4 w-4" />,
-  },
-  {
-    label: "My Subscriptions",
-    href: "/my-subscriptions",
-    icon: <TicketIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Mint",
-    href: "/mint",
-    icon: <PlusCircleIcon className="h-4 w-4" />,
-  },
-  {
-    label: "My Bookings",
-    href: "/my-bookings",
-    icon: <CalendarDaysIcon className="h-4 w-4" />,
   },
   {
     label: "Debug Contracts",
@@ -115,7 +86,7 @@ export const Header = () => {
             <Image alt="Hedera icon" className="cursor-pointer hidden dark:block" fill src="/Hedera-Icon-White.svg" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold leading-tight text-base">Scaffold-HBAR</span>
+            <span className="font-bold leading-tight text-base">Product Passport</span>
             <span className="text-[10px] tracking-wider uppercase text-base-content/50 font-medium">
               Built on Hedera
             </span>

@@ -1,15 +1,16 @@
 {
-  "name": "sh",
+  "name": "product-passport",
   "version": "0.0.1",
   "private": true,
   "workspaces": {
     "packages": [
       "packages/hardhat",
-      "packages/nextjs"
+      "packages/nextjs",
+      "packages/indexer"
     ]
   },
   "scripts": {
-    "format": "yarn next:format && yarn hardhat:format",
+    "format": "yarn next:format && yarn hardhat:format && yarn indexer:format",
     "hardhat:account": "yarn workspace @sh/hardhat account",
     "hardhat:account:generate": "yarn workspace @sh/hardhat account:generate",
     "hardhat:account:import": "yarn workspace @sh/hardhat account:import",
@@ -29,7 +30,15 @@
     "hardhat:verify": "yarn workspace @sh/hardhat verify",
     "hardhat:verify:testnet": "yarn workspace @sh/hardhat verify:testnet",
     "hardhat:verify:mainnet": "yarn workspace @sh/hardhat verify:mainnet",
-    "lint": "yarn next:lint && yarn hardhat:lint",
+    "indexer:build": "yarn workspace @sh/indexer build",
+    "indexer:check-types": "yarn workspace @sh/indexer check-types",
+    "indexer:dev": "yarn workspace @sh/indexer dev",
+    "indexer:format": "yarn workspace @sh/indexer format",
+    "indexer:lint": "yarn workspace @sh/indexer lint",
+    "indexer:replay": "yarn workspace @sh/indexer replay",
+    "indexer:test": "yarn workspace @sh/indexer test",
+    "indexer:verify": "yarn workspace @sh/indexer verify",
+    "lint": "yarn next:lint && yarn hardhat:lint && yarn indexer:lint",
     "next:build": "yarn workspace @sh/nextjs build",
     "next:check-types": "yarn workspace @sh/nextjs check-types",
     "next:dev": "yarn workspace @sh/nextjs dev",

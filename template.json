@@ -1,0 +1,73 @@
+{
+  "name": "product-passport",
+  "description": "Digital Product Passports on Hedera: an HTS NFT per product minted through the system contract, an HCS topic per product as its ordered lifecycle log, and a mirror-node indexer that reconciles custody claims against real NFT transfers.",
+  "version": "0.1.0",
+  "create-scaffold-hbar": {
+    "capabilities": {
+      "frontend": ["nextjs-app"],
+      "solidityFramework": ["hardhat"],
+      "packageManager": ["yarn"]
+    },
+    "defaults": {
+      "frontend": "nextjs-app",
+      "solidityFramework": "hardhat",
+      "packageManager": "yarn"
+    },
+    "requirements": {
+      "node": ">=20.18.3"
+    },
+    "outro": {
+      "sections": [
+        {
+          "title": "Explore it first — no account needed",
+          "steps": [
+            {
+              "label": "Start the app on bundled demo data",
+              "command": "{run:next:start}",
+              "text": "Then open http://localhost:3000/verify/1 to see a passport, its lifecycle timeline and its verification status. No .env, no wallet, no network."
+            }
+          ]
+        },
+        {
+          "title": "Put a real passport on Hedera testnet",
+          "steps": [
+            {
+              "label": "1. Create a deployer account",
+              "command": "{run:hardhat:account:generate}",
+              "text": "Creates an ECDSA key and stores it encrypted. ECDSA is required for the EVM flows."
+            },
+            {
+              "label": "2. Fund it",
+              "url": "https://portal.hedera.com/faucet",
+              "text": "Paste the address printed above. The bootstrap needs roughly 35 HBAR: about 2 to deploy, about 20 for HTS token creation, the rest for the topic and its messages."
+            },
+            {
+              "label": "3. Bootstrap",
+              "command": "{run:passport:bootstrap}",
+              "text": "Deploys PassportRegistry, creates the NFT collection, creates the demo product's HCS topic, registers the product and submits its first events. Idempotent — safe to re-run."
+            },
+            {
+              "label": "4. Index it",
+              "command": "{run:indexer:dev}",
+              "text": "Replays the mirror node into a local SQLite index and reconciles every custody claim against the NFT's real transfer history."
+            },
+            {
+              "label": "5. Open the passport",
+              "command": "{run:next:start}",
+              "text": "http://localhost:3000/verify/1 now renders live testnet data, with a HashScan link on every claim."
+            }
+          ]
+        },
+        {
+          "title": "When something looks wrong",
+          "steps": [
+            {
+              "label": "Check every entity and the indexer cursor",
+              "command": "{run:passport:status}"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
