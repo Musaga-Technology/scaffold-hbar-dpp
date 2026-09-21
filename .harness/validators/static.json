@@ -47,7 +47,7 @@
       "packages/hardhat/contracts/PassportRegistry.sol",
       "packages/hardhat/test/PassportRegistry.test.ts",
       "packages/indexer/src/reconcile.ts",
-      "packages/nextjs/app/verify/[serial]/page.tsx",
+      "packages/nextjs/app/(public)/verify/[serial]/page.tsx",
       ".harness/spec.yaml",
       "packages/hardhat/scripts/status.ts",
       "packages/nextjs/Dockerfile",

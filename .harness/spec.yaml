@@ -91,9 +91,9 @@ requiredFiles:
   - packages/indexer/package.json
   - packages/indexer/src/index.ts
   - packages/indexer/src/reconcile.ts
-  - packages/nextjs/app/verify/[serial]/page.tsx
-  - packages/nextjs/app/issuer/page.tsx
-  - packages/nextjs/app/my-passports/page.tsx
+  - packages/nextjs/app/(public)/verify/[serial]/page.tsx
+  - packages/nextjs/app/(wallet)/issuer/page.tsx
+  - packages/nextjs/app/(wallet)/my-passports/page.tsx
   - packages/nextjs/fixtures/demo-passport.json
 
 # Tier 3.5 — enable on a host with a funded ECDSA testnet operator exported in the shell.
