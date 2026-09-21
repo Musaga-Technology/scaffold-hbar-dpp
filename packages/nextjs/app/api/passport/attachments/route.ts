@@ -57,13 +57,15 @@ export async function POST(request: Request) {
         {
           // Exactly the shape an event payload's `attachments` entry takes.
           attachment: {
+            // Omitted for IPFS so the common case costs no HCS bytes.
+            ...(stored.protocol === "arweave" ? { protocol: stored.protocol } : {}),
             cid: stored.cid,
             hash: stored.hash,
             name: stored.name,
             type: stored.type,
             bytes: stored.bytes,
           },
-          uri: `ipfs://${stored.cid}`,
+          uri: stored.protocol === "arweave" ? `ar://${stored.cid}` : `ipfs://${stored.cid}`,
           provider: provider.name,
         },
         201,

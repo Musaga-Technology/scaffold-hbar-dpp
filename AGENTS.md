@@ -89,13 +89,17 @@ method. `pinata.ts` is about sixty lines; Filebase, web3.storage and a
 self-hosted IPFS node are the same shape. Nothing outside that directory knows
 which provider is in use.
 
-**Arweave** is the upgrade worth making for regulated categories. IPFS pins
-persist while someone keeps paying to pin them; Arweave is paid once and stored
-permanently, which matches a passport that must outlive the product and possibly
-the manufacturer. Implement `StorageProvider` against Irys or a direct Arweave
-client and set it in `requireStorageProvider()`. The indexer needs no change —
-it verifies by fetching a CID through a gateway, and an Arweave transaction id
-resolves the same way through an `ar://` gateway.
+**Arweave ships** (`services/storage/arweave.ts`, via Irys). Set `ARWEAVE_JWK`
+and it takes precedence over `PINATA_JWT`. `@irys/sdk` is an optional
+dependency — install it only if you use this path.
+
+An attachment declares `protocol: "arweave"`; omitting it means IPFS, so events
+written before Arweave support decode unchanged. An unrecognised protocol is
+**dropped rather than assumed** — verifying an id against the wrong network
+would produce a confident, meaningless verdict.
+
+The indexer verifies both identically: fetch, hash, compare. Only the gateway
+path differs (`/ipfs/<cid>` versus `/<txid>` at the root).
 
 ### Swap SQLite for Postgres
 

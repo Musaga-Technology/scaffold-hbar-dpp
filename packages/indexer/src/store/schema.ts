@@ -123,6 +123,8 @@ export const attachments = sqliteTable(
     topicId: text("topic_id").notNull(),
     sequenceNumber: integer("sequence_number").notNull(),
     cid: text("cid").notNull(),
+    /** Which network the id belongs to; "ipfs" unless stated otherwise. */
+    protocol: text("protocol").$type<AttachmentProtocol>().notNull().default("ipfs"),
     /** sha256 the event declared for the content. */
     declaredHash: text("declared_hash").notNull(),
     name: text("name"),
@@ -139,6 +141,10 @@ export const attachments = sqliteTable(
     index("attachments_state_idx").on(table.state),
   ],
 );
+
+/** Where an attachment's content lives. */
+export const ATTACHMENT_PROTOCOLS = ["ipfs", "arweave"] as const;
+export type AttachmentProtocol = (typeof ATTACHMENT_PROTOCOLS)[number];
 
 /** What the indexer concluded about an attachment after fetching it. */
 export const ATTACHMENT_STATES = ["pending", "verified", "mismatch", "unreachable"] as const;

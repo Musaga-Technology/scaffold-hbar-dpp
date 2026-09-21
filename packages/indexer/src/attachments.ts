@@ -18,6 +18,12 @@
  * hiccup is not evidence of fraud, and calling it one would be its own kind of
  * dishonesty. They are reported separately for that reason.
  *
+ * `unreachable` is also what pin rot looks like. IPFS content persists only
+ * while somebody keeps paying to pin it, so a passport whose manufacturer
+ * stopped paying degrades to exactly this state — the reference stays valid and
+ * the content is gone. That failure mode is why the model also speaks Arweave,
+ * which is paid once and stored by endowment.
+ *
  * Note what this cannot prove: that the document says what it claims to say.
  * It proves only that the document is the one that was attested to at that
  * consensus timestamp. That is a narrow guarantee, and stating it narrowly is
@@ -25,7 +31,14 @@
  */
 import { createHash } from "node:crypto";
 
-import { gatewayUrl, readAttachments, type EventAttachment } from "./events/index.js";
+import {
+  DEFAULT_ARWEAVE_GATEWAY,
+  DEFAULT_IPFS_GATEWAY,
+  gatewayUrl,
+  readAttachments,
+  type AttachmentProtocol,
+  type EventAttachment,
+} from "./events/index.js";
 import type { AttachmentVerdict, IndexStore } from "./store/index.js";
 
 /** Largest document the indexer will pull down while verifying. */
@@ -72,6 +85,7 @@ export async function recordAttachments(
       topicId,
       sequenceNumber,
       cid: attachment.cid,
+      protocol: attachment.protocol ?? "ipfs",
       declaredHash: attachment.hash,
       name: attachment.name ?? null,
       mediaType: attachment.type ?? null,
@@ -81,6 +95,18 @@ export async function recordAttachments(
 
   return found;
 }
+
+/** Gateways to read each network's content back through. */
+export interface Gateways {
+  ipfs: string;
+  arweave: string;
+}
+
+/** Gateway defaults, used when nothing is configured. */
+export const DEFAULT_GATEWAYS: Gateways = {
+  ipfs: DEFAULT_IPFS_GATEWAY,
+  arweave: DEFAULT_ARWEAVE_GATEWAY,
+};
 
 /**
  * Fetches one attachment and judges it.
@@ -94,15 +120,21 @@ export async function recordAttachments(
  * @returns The verdict, without the identifying keys.
  */
 export async function verifyAttachment(
-  attachment: { cid: string; declaredHash: string },
-  gateway: string,
+  attachment: { cid: string; declaredHash: string; protocol?: AttachmentProtocol },
+  gateways: Gateways = DEFAULT_GATEWAYS,
   fetchImpl: FetchLike = fetch as unknown as FetchLike,
 ): Promise<Omit<AttachmentVerdict, "topicId" | "sequenceNumber" | "cid">> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const protocol = attachment.protocol ?? "ipfs";
+  const gateway = protocol === "arweave" ? gateways.arweave : gateways.ipfs;
 
   try {
-    const response = await fetchImpl(gatewayUrl(attachment.cid, gateway), { signal: controller.signal });
+    // Verification is identical whichever network the document lives on: fetch
+    // it back and compare the hash. Only the URL shape differs.
+    const response = await fetchImpl(gatewayUrl(attachment.cid, gateway, protocol), {
+      signal: controller.signal,
+    });
 
     if (!response.ok) {
       return {
@@ -163,7 +195,7 @@ export async function verifyAttachment(
  */
 export async function verifyPendingAttachments(
   store: IndexStore,
-  gateway: string,
+  gateways: Gateways = DEFAULT_GATEWAYS,
   fetchImpl: FetchLike = fetch as unknown as FetchLike,
 ): Promise<{ checked: number; verified: number; mismatch: number; unreachable: number }> {
   const all = await store.listAllAttachments();
@@ -173,7 +205,11 @@ export async function verifyPendingAttachments(
   const counts = { checked: 0, verified: 0, mismatch: 0, unreachable: 0 };
 
   for (const row of toCheck) {
-    const outcome = await verifyAttachment({ cid: row.cid, declaredHash: row.declaredHash }, gateway, fetchImpl);
+    const outcome = await verifyAttachment(
+      { cid: row.cid, declaredHash: row.declaredHash, protocol: row.protocol },
+      gateways,
+      fetchImpl,
+    );
 
     verdicts.push({
       topicId: row.topicId,

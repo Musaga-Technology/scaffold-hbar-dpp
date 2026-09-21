@@ -224,10 +224,39 @@ testnet. Without it, attaching a document returns `503` with instructions and
 every other part of the template is unaffected — verification, custody,
 reconciliation and the public page all work with no storage configured at all.
 
-The provider sits behind one interface in `packages/nextjs/services/storage/`.
-Filebase, web3.storage or a self-hosted IPFS node are the same shape. Arweave —
-pay once, stored permanently — is the natural upgrade for passports that must
-outlive the company that made the product; see `AGENTS.md`.
+### IPFS or Arweave
+
+Both are supported, and verification is identical either way — fetch the content
+back, hash it, compare. Only the gateway path differs, so a passport can carry
+documents on both at once. The bundled demo does exactly that.
+
+The difference that matters is persistence, not decentralisation:
+
+| | IPFS | Arweave |
+| --- | --- | --- |
+| Content survives | while somebody keeps paying to pin it | paid once, stored by endowment |
+| Cost | free tiers are generous | free under 100 kB on Irys mainnet; devnet free but pruned after ~60 days |
+| Configure with | `PINATA_JWT` | `ARWEAVE_JWK` (takes precedence when both are set) |
+
+That first row is the whole argument. A passport for an EV battery has to still
+resolve in fifteen or twenty years, quite possibly after the manufacturer has
+stopped paying for anything. **Pin rot is already visible in this template** —
+an attachment whose pin has lapsed shows as `unreachable`, the reference still
+valid and the content gone. Arweave is the answer to that state rather than a
+second flavour of the same thing.
+
+The Arweave path needs `@irys/sdk`, which is deliberately *not* a dependency:
+
+```bash
+yarn workspace @sh/nextjs add @irys/sdk
+```
+
+Teams using IPFS should not install an Arweave SDK they will never call, and the
+install is already large enough. The provider says so at runtime if it is missing.
+
+Both sit behind one interface in `packages/nextjs/services/storage/` — one
+method, `put`. Filebase, web3.storage or a self-hosted IPFS node are the same
+shape; see `AGENTS.md`.
 
 ## Commands
 

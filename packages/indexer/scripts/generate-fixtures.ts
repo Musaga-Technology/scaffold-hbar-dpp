@@ -66,10 +66,14 @@ const BASE_EPOCH = Math.floor(Date.parse(BASE_ISO) / 1000);
  * ids are: nothing here should resolve to somebody else's real content.
  */
 const INTACT_CID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
+/** An Arweave transaction id: 43 base64url characters. Also unallocated. */
+const PERMANENT_AR_ID = "kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk";
 const SWAPPED_CID = "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku";
 
 const INTACT_BODY =
   "CONFORMITY CERTIFICATE\nEU 2023/1542 Annex XIII\nPowerCell 72 kWh EV Pack\nIssued by TUV Rheinland";
+const PERMANENT_BODY =
+  "END-OF-LIFE DECLARATION\nRecycling route registered\nRetention required beyond product lifetime";
 const ATTESTED_BODY = "FIBRE COMPOSITION REPORT\n68% recycled polyester, 32% organic cotton\nVerified by OEKO-TEX";
 const REPLACED_BODY = "FIBRE COMPOSITION REPORT\n41% recycled content\nThis document replaced the attested one";
 
@@ -171,6 +175,15 @@ const cleanMessages = buildMessages(CLEAN_TOPIC, [
             cid: INTACT_CID,
             hash: sha256Hex(INTACT_BODY),
             name: "conformity-certificate.txt",
+            type: "text/plain",
+          },
+          {
+            // Stored permanently, because an end-of-life declaration has to
+            // outlive whoever is currently paying to pin things.
+            protocol: "arweave",
+            cid: PERMANENT_AR_ID,
+            hash: sha256Hex(PERMANENT_BODY),
+            name: "end-of-life-declaration.txt",
             type: "text/plain",
           },
         ],
@@ -381,10 +394,12 @@ await pollOnce(store, mirror, [CLEAN_TOPIC, FORGED_TOPIC]);
 const gatewayBodies: Record<string, string> = {
   [INTACT_CID]: INTACT_BODY,
   [SWAPPED_CID]: REPLACED_BODY,
+  [PERMANENT_AR_ID]: PERMANENT_BODY,
 };
 const gatewayFetch: GatewayFetch = async (url: string) => {
-  const cid = url.split("/ipfs/")[1] ?? "";
-  const body = gatewayBodies[cid];
+  // IPFS serves under /ipfs/<cid>; Arweave serves the id at the root.
+  const id = url.includes("/ipfs/") ? (url.split("/ipfs/")[1] ?? "") : (url.split("/").pop() ?? "");
+  const body = gatewayBodies[id];
   if (body === undefined) {
     return { ok: false, status: 404, statusText: "Not Found", arrayBuffer: async () => new ArrayBuffer(0) };
   }
@@ -396,7 +411,7 @@ const gatewayFetch: GatewayFetch = async (url: string) => {
   };
 };
 
-await verifyPendingAttachments(store, "https://ipfs.io", gatewayFetch);
+await verifyPendingAttachments(store, { ipfs: "https://ipfs.io", arweave: "https://arweave.net" }, gatewayFetch);
 await reconcileAll(store, mirror);
 
 fs.mkdirSync(APP_FIXTURE_DIR, { recursive: true });

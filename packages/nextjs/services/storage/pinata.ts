@@ -75,6 +75,7 @@ export function createPinataProvider(jwt: string, gateway?: string): StorageProv
 
       return {
         cid: body.IpfsHash,
+        protocol: "ipfs",
         hash,
         bytes: file.size,
         name: file.name,

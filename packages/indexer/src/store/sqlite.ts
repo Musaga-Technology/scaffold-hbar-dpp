@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS attachments (
   topic_id TEXT NOT NULL,
   sequence_number INTEGER NOT NULL,
   cid TEXT NOT NULL,
+  protocol TEXT NOT NULL DEFAULT 'ipfs',
   declared_hash TEXT NOT NULL,
   name TEXT,
   media_type TEXT,

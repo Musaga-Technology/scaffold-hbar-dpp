@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS attachments (
   topic_id TEXT NOT NULL,
   sequence_number BIGINT NOT NULL,
   cid TEXT NOT NULL,
+  protocol TEXT NOT NULL DEFAULT 'ipfs',
   declared_hash TEXT NOT NULL,
   name TEXT,
   media_type TEXT,
@@ -144,6 +145,7 @@ function toAttachment(row: Record<string, unknown>): AttachmentRow {
     topicId: row.topic_id as string,
     sequenceNumber: Number(row.sequence_number),
     cid: row.cid as string,
+    protocol: (row.protocol as AttachmentRow["protocol"]) ?? "ipfs",
     declaredHash: row.declared_hash as string,
     name: (row.name as string) ?? null,
     mediaType: (row.media_type as string) ?? null,
@@ -345,9 +347,10 @@ export class PostgresIndexStore implements IndexStore {
     // A re-poll re-declares the reference but must not discard a verdict the
     // verifier already reached, so state/note/observed_hash are left alone.
     await this.pool.query(
-      `INSERT INTO attachments (topic_id, sequence_number, cid, declared_hash, name, media_type, bytes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+      `INSERT INTO attachments (topic_id, sequence_number, cid, protocol, declared_hash, name, media_type, bytes)
+       VALUES ($1,$2,$3,COALESCE($4,'ipfs'),$5,$6,$7,$8)
        ON CONFLICT (topic_id, sequence_number, cid) DO UPDATE SET
+         protocol = EXCLUDED.protocol,
          declared_hash = EXCLUDED.declared_hash,
          name = COALESCE(EXCLUDED.name, attachments.name),
          media_type = COALESCE(EXCLUDED.media_type, attachments.media_type),
@@ -356,6 +359,7 @@ export class PostgresIndexStore implements IndexStore {
         attachment.topicId,
         attachment.sequenceNumber,
         attachment.cid,
+        attachment.protocol ?? null,
         attachment.declaredHash,
         attachment.name ?? null,
         attachment.mediaType ?? null,

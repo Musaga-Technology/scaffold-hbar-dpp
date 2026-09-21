@@ -62,11 +62,11 @@ function humanBytes(bytes: number | null): string | undefined {
 
 export const Documents = ({
   attachments,
-  gateway = "https://ipfs.io",
+  gateways = { ipfs: "https://ipfs.io", arweave: "https://arweave.net" },
   demo = false,
 }: {
   attachments: PassportAttachment[];
-  gateway?: string;
+  gateways?: { ipfs: string; arweave: string };
   demo?: boolean;
 }) => {
   if (attachments.length === 0) return null;
@@ -128,7 +128,7 @@ export const Documents = ({
 
                   <dl className="mt-2 grid gap-0.5 text-xs text-base-content/50">
                     <div className="flex gap-2">
-                      <dt className="shrink-0">CID</dt>
+                      <dt className="shrink-0">{attachment.protocol === "arweave" ? "Arweave tx" : "CID"}</dt>
                       <dd className="m-0 break-all font-mono">{attachment.cid}</dd>
                     </div>
                     <div className="flex gap-2">
@@ -144,7 +144,11 @@ export const Documents = ({
                   </dl>
 
                   <Link
-                    href={`${gateway.replace(/\/+$/, "")}/ipfs/${attachment.cid}`}
+                    href={
+                      attachment.protocol === "arweave"
+                        ? `${gateways.arweave.replace(/\/+$/, "")}/${attachment.cid}`
+                        : `${gateways.ipfs.replace(/\/+$/, "")}/ipfs/${attachment.cid}`
+                    }
                     target="_blank"
                     rel="noreferrer"
                     title={
@@ -156,7 +160,7 @@ export const Documents = ({
                       demo ? "text-base-content/40 decoration-dotted" : "link link-hover text-primary"
                     }`}
                   >
-                    Open on IPFS
+                    Open on {attachment.protocol === "arweave" ? "Arweave" : "IPFS"}
                     {demo && <span className="opacity-70">(demo cid)</span>}
                     <ArrowTopRightOnSquareIcon className="h-3 w-3" />
                   </Link>

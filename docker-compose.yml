@@ -41,6 +41,7 @@ services:
       PASSPORT_REGISTRY_ADDRESS: ${PASSPORT_REGISTRY_ADDRESS:-}
       INDEXER_PORT: "3001"
       IPFS_GATEWAY_URL: ${IPFS_GATEWAY_URL:-https://ipfs.io}
+      ARWEAVE_GATEWAY_URL: ${ARWEAVE_GATEWAY_URL:-https://arweave.net}
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -72,6 +73,8 @@ services:
       # Storage for passport documents. Also server-side only.
       PINATA_JWT: ${PINATA_JWT:-}
       PINATA_GATEWAY_URL: ${PINATA_GATEWAY_URL:-}
+      ARWEAVE_JWK: ${ARWEAVE_JWK:-}
+      ARWEAVE_NETWORK: ${ARWEAVE_NETWORK:-devnet}
     ports:
       - "3000:3000"
     restart: unless-stopped

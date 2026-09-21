@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { SchemaForm } from "./SchemaForm";
-import { METADATA_POINTER_MAX_BYTES, checkMetadataPointer } from "@sh/indexer/events/metadata";
 import { canonicalize } from "@sh/indexer/events/canonicalize";
+import { METADATA_POINTER_MAX_BYTES, checkMetadataPointer } from "@sh/indexer/events/metadata";
 import { decodeEventLog, toBytes, toHex } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 import { ArrowTopRightOnSquareIcon, CheckCircleIcon } from "@heroicons/react/24/outline";

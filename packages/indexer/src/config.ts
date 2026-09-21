@@ -1,4 +1,4 @@
-import { DEFAULT_IPFS_GATEWAY } from "./events/index.js";
+import { DEFAULT_ARWEAVE_GATEWAY, DEFAULT_IPFS_GATEWAY } from "./events/index.js";
 
 /**
  * Indexer configuration, resolved from the environment.
@@ -34,8 +34,8 @@ export interface IndexerConfig {
   databaseUrl?: string;
   /** Port for the read-only index API served by `dev`. */
   port: number;
-  /** IPFS gateway used to read attachments back for verification. */
-  ipfsGateway: string;
+  /** Gateways used to read attachments back for verification, per network. */
+  gateways: { ipfs: string; arweave: string };
 }
 
 const DEFAULTS = {
@@ -83,7 +83,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndexerConfig 
     dbPath: env.INDEX_DB_PATH || DEFAULTS.dbPath,
     databaseUrl: env.DATABASE_URL || undefined,
     port: parsePositiveInt(env.INDEXER_PORT, DEFAULTS.port, "INDEXER_PORT"),
-    ipfsGateway: (env.IPFS_GATEWAY_URL ?? DEFAULT_IPFS_GATEWAY).replace(/\/+$/, ""),
+    gateways: {
+      ipfs: (env.IPFS_GATEWAY_URL ?? DEFAULT_IPFS_GATEWAY).replace(/\/+$/, ""),
+      arweave: (env.ARWEAVE_GATEWAY_URL ?? DEFAULT_ARWEAVE_GATEWAY).replace(/\/+$/, ""),
+    },
   };
 }
 

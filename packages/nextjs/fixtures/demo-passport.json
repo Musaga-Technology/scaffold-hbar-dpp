@@ -11,7 +11,7 @@
     "metadataJson": "{\"batteryCategory\":\"EV\",\"category\":\"battery\",\"chemistry\":\"LFP\",\"manufacturedAt\":\"2026-07-14\",\"manufacturer\":\"Northwind Cells\",\"name\":\"PowerCell 72 kWh EV Pack\",\"originCountry\":\"PL\",\"ratedCapacityKwh\":72}",
     "currentHolder": "0.0.3333333333",
     "status": "verified",
-    "lastReconciledAt": "2026-09-18T17:23:43.749Z"
+    "lastReconciledAt": "2026-09-18T17:44:12.672Z"
   },
   "events": [
     {
@@ -98,8 +98,8 @@
       "tokenId": "0.0.5555555555",
       "type": "product.inspected",
       "actor": "0.0.2222222222",
-      "payloadJson": "{\"attachments\":[{\"cid\":\"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi\",\"hash\":\"992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81\",\"name\":\"conformity-certificate.txt\",\"type\":\"text/plain\"}],\"inspector\":\"TUV Rheinland\",\"result\":\"pass\"}",
-      "payloadHash": "501d03cc495f394174a93fc89cc34abb676acbdce8d208a545c2dc80a8389cfd",
+      "payloadJson": "{\"attachments\":[{\"cid\":\"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi\",\"hash\":\"992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81\",\"name\":\"conformity-certificate.txt\",\"type\":\"text/plain\"},{\"cid\":\"kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk\",\"hash\":\"9c6a614c5629e24dddd30c843bfe52741aeb2d4c131e38ca6a43ab5c0db37876\",\"name\":\"end-of-life-declaration.txt\",\"protocol\":\"arweave\",\"type\":\"text/plain\"}],\"inspector\":\"TUV Rheinland\",\"result\":\"pass\"}",
+      "payloadHash": "73b75b22dc5aefc55f90a017b36dbe48400b429e25bfabc4db5b493fc5014032",
       "ref": null,
       "hashValid": true,
       "malformedReason": null,
@@ -112,6 +112,13 @@
             "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
             "hash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
             "name": "conformity-certificate.txt",
+            "type": "text/plain"
+          },
+          {
+            "cid": "kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk",
+            "hash": "9c6a614c5629e24dddd30c843bfe52741aeb2d4c131e38ca6a43ab5c0db37876",
+            "name": "end-of-life-declaration.txt",
+            "protocol": "arweave",
             "type": "text/plain"
           }
         ],
@@ -177,6 +184,7 @@
       "topicId": "0.0.6666666666",
       "sequenceNumber": 4,
       "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+      "protocol": "ipfs",
       "declaredHash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
       "name": "conformity-certificate.txt",
       "mediaType": "text/plain",
@@ -184,7 +192,21 @@
       "bytes": 95,
       "state": "verified",
       "note": null,
-      "checkedAt": "2026-09-18T17:23:43.743Z"
+      "checkedAt": "2026-09-18T17:44:12.661Z"
+    },
+    {
+      "topicId": "0.0.6666666666",
+      "sequenceNumber": 4,
+      "cid": "kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk",
+      "protocol": "arweave",
+      "declaredHash": "9c6a614c5629e24dddd30c843bfe52741aeb2d4c131e38ca6a43ab5c0db37876",
+      "name": "end-of-life-declaration.txt",
+      "mediaType": "text/plain",
+      "observedHash": "9c6a614c5629e24dddd30c843bfe52741aeb2d4c131e38ca6a43ab5c0db37876",
+      "bytes": 93,
+      "state": "verified",
+      "note": null,
+      "checkedAt": "2026-09-18T17:44:12.661Z"
     }
   ]
 }

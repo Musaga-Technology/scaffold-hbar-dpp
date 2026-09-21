@@ -36,7 +36,8 @@ Environment:
   INDEX_DB_PATH              SQLite file (default ./data/passport.db)
   DATABASE_URL               Use Postgres instead of SQLite
   INDEXER_PORT               Index API port for \`dev\` (default 3001)
-  IPFS_GATEWAY_URL           Gateway used to verify attachments (default ipfs.io)
+  IPFS_GATEWAY_URL           IPFS gateway for verifying documents (default ipfs.io)
+  ARWEAVE_GATEWAY_URL        Arweave gateway for verifying documents (default arweave.net)
 
 Run \`yarn passport:bootstrap\` first — it writes packages/indexer/.env.local
 with the registry address and the demo product's topic id.`;
@@ -60,7 +61,7 @@ export function describeConfig(config: IndexerConfig): string {
     `indexing:    ${target}`,
     `store:       ${store}`,
     `poll:        ${config.pollMs}ms`,
-    `documents:   ${config.ipfsGateway}`,
+    `documents:   ipfs ${config.gateways.ipfs}, arweave ${config.gateways.arweave}`,
   ].join("\n");
 }
 
@@ -135,7 +136,7 @@ export async function runCommand(
       out("\nDropping the index and rebuilding from sequence 1…");
       await store.reset();
       reportPoll(await pollOnce(store, mirror, topicIds), out);
-      const documents = await verifyPendingAttachments(store, config.ipfsGateway);
+      const documents = await verifyPendingAttachments(store, config.gateways);
       if (documents.checked > 0) {
         out(
           `  documents: ${documents.verified} verified, ${documents.mismatch} mismatched, ${documents.unreachable} unreachable`,
@@ -194,7 +195,7 @@ export async function runCommand(
           // against the hash the event committed to. Run before reconciliation
           // so a swapped document is reflected in the passport's status on the
           // same pass it is discovered.
-          const documents = await verifyPendingAttachments(store, config.ipfsGateway);
+          const documents = await verifyPendingAttachments(store, config.gateways);
           if (documents.checked > 0) {
             const parts = [`${documents.verified} verified`];
             if (documents.mismatch > 0) parts.push(`${documents.mismatch} MISMATCHED`);

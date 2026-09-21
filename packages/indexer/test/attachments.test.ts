@@ -8,11 +8,20 @@ import {
   verifyPendingAttachments,
   type FetchLike,
 } from "../src/attachments.js";
-import { gatewayUrl, ipfsUri, isLikelyCid, isSha256Hex, readAttachments } from "../src/events/index.js";
+import {
+  contentUri,
+  gatewayUrl,
+  ipfsUri,
+  isLikelyArweaveId,
+  isLikelyCid,
+  isLikelyContentId,
+  isSha256Hex,
+  readAttachments,
+} from "../src/events/index.js";
 import { createMemoryStore } from "../src/store/index.js";
 import type { IndexStore } from "../src/store/index.js";
 
-const GATEWAY = "https://ipfs.example";
+const GATEWAY = { ipfs: "https://ipfs.example", arweave: "https://ar.example" };
 const CID_V0 = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG";
 const CID_V1 = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
 
@@ -298,5 +307,123 @@ describe("verifyPendingAttachments", () => {
     expect(stats.attachments).toBe(2);
     expect(stats.attachmentsVerified).toBe(1);
     expect(stats.attachmentsFailed).toBe(1);
+  });
+});
+
+describe("Arweave-hosted documents", () => {
+  const AR_ID = "cP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Z-Ss";
+
+  it("recognises an Arweave transaction id and rejects a CID as one", () => {
+    expect(isLikelyArweaveId(AR_ID)).toBe(true);
+    expect(isLikelyArweaveId(CID_V1)).toBe(false);
+    expect(isLikelyArweaveId("too-short")).toBe(false);
+    expect(isLikelyContentId(AR_ID, "arweave")).toBe(true);
+    expect(isLikelyContentId(AR_ID, "ipfs")).toBe(false);
+  });
+
+  it("reads an Arweave reference out of a payload", () => {
+    const hash = sha256("certificate");
+    const found = readAttachments({
+      attachments: [{ protocol: "arweave", cid: AR_ID, hash, name: "coa.pdf" }],
+    });
+
+    expect(found).toHaveLength(1);
+    expect(found[0]!.protocol).toBe("arweave");
+    expect(found[0]!.cid).toBe(AR_ID);
+  });
+
+  it("omits the protocol for IPFS, so existing events decode unchanged", () => {
+    const hash = sha256("x");
+    const found = readAttachments({ attachments: [{ cid: CID_V1, hash }] });
+    expect(found[0]!.protocol).toBeUndefined();
+  });
+
+  it("drops a reference whose protocol it does not understand", () => {
+    // Better to record nothing than to verify an id against the wrong network
+    // and report a confident, meaningless verdict.
+    const hash = sha256("x");
+    expect(readAttachments({ attachments: [{ protocol: "filecoin", cid: CID_V1, hash }] })).toEqual([]);
+  });
+
+  it("builds the right gateway path for each network", () => {
+    // Arweave serves the transaction id at the root; IPFS serves under /ipfs/.
+    expect(gatewayUrl(AR_ID, "https://arweave.net", "arweave")).toBe(`https://arweave.net/${AR_ID}`);
+    expect(gatewayUrl(CID_V1, "https://ipfs.io", "ipfs")).toBe(`https://ipfs.io/ipfs/${CID_V1}`);
+    expect(contentUri(AR_ID, "arweave")).toBe(`ar://${AR_ID}`);
+    expect(contentUri(CID_V1)).toBe(`ipfs://${CID_V1}`);
+  });
+
+  it("verifies an Arweave document through the Arweave gateway", async () => {
+    const body = "permanent conformity certificate";
+    const fetchImpl: FetchLike = async (url: string) => {
+      // Asserts routing: an Arweave id must not be fetched from the IPFS gateway.
+      expect(url).toBe(`https://ar.example/${AR_ID}`);
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        arrayBuffer: async () => new TextEncoder().encode(body).buffer as ArrayBuffer,
+      };
+    };
+
+    const result = await verifyAttachment(
+      { cid: AR_ID, declaredHash: sha256(body), protocol: "arweave" },
+      GATEWAY,
+      fetchImpl,
+    );
+    expect(result.state).toBe("verified");
+  });
+
+  it("catches a swapped Arweave document exactly as it does an IPFS one", async () => {
+    const result = await verifyAttachment(
+      { cid: AR_ID, declaredHash: sha256("attested"), protocol: "arweave" },
+      GATEWAY,
+      async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        arrayBuffer: async () => new TextEncoder().encode("replaced").buffer as ArrayBuffer,
+      }),
+    );
+
+    expect(result.state).toBe("mismatch");
+  });
+
+  it("verifies a mixed passport, routing each document to its own network", async () => {
+    const store = await createMemoryStore();
+    try {
+      await store.upsertEvent({
+        topicId: "0.0.6666666666",
+        sequenceNumber: 1,
+        consensusTimestamp: "1000.000000000",
+        serial: 1,
+        type: "product.inspected",
+        hashValid: true,
+      });
+      await recordAttachments(store, "0.0.6666666666", 1, {
+        attachments: [
+          { cid: CID_V1, hash: sha256("on ipfs") },
+          { protocol: "arweave", cid: AR_ID, hash: sha256("on arweave") },
+        ],
+      });
+
+      const seen: string[] = [];
+      const counts = await verifyPendingAttachments(store, GATEWAY, async (url: string) => {
+        seen.push(url);
+        const body = url.includes("/ipfs/") ? "on ipfs" : "on arweave";
+        return {
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          arrayBuffer: async () => new TextEncoder().encode(body).buffer as ArrayBuffer,
+        };
+      });
+
+      expect(counts.verified).toBe(2);
+      expect(seen).toContain(`https://ipfs.example/ipfs/${CID_V1}`);
+      expect(seen).toContain(`https://ar.example/${AR_ID}`);
+    } finally {
+      await store.close();
+    }
   });
 });

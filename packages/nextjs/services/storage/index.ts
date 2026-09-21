@@ -19,9 +19,15 @@
  */
 import "server-only";
 
-/** A document that has been pinned and is addressable by CID. */
+/** Where a stored document lives. */
+export type StorageProtocol = "ipfs" | "arweave";
+
+/** A document that has been stored and is addressable by content id. */
 export interface StoredDocument {
+  /** IPFS CID, or Arweave transaction id. */
   cid: string;
+  /** Which network it lives on. */
+  protocol: StorageProtocol;
   /** sha256 of the raw bytes, computed here rather than trusted from the client. */
   hash: string;
   bytes: number;
@@ -73,7 +79,7 @@ export async function hashFile(file: File): Promise<{ hash: string; bytes: Uint8
 
 /** True when a storage provider is configured. */
 export function hasStorageProvider(): boolean {
-  return Boolean(process.env.PINATA_JWT);
+  return Boolean(process.env.ARWEAVE_JWK || process.env.PINATA_JWT);
 }
 
 /**
@@ -83,14 +89,23 @@ export function hasStorageProvider(): boolean {
  * @throws StorageUnavailableError when none is configured.
  */
 export async function requireStorageProvider(): Promise<StorageProvider> {
+  // Arweave wins when both are set: if an operator has gone to the trouble of
+  // configuring permanent storage, they meant it.
+  if (process.env.ARWEAVE_JWK) {
+    const { createArweaveProvider } = await import("./arweave");
+    const network = process.env.ARWEAVE_NETWORK === "mainnet" ? "mainnet" : "devnet";
+    return createArweaveProvider(process.env.ARWEAVE_JWK, network);
+  }
+
   if (process.env.PINATA_JWT) {
     const { createPinataProvider } = await import("./pinata");
     return createPinataProvider(process.env.PINATA_JWT, process.env.PINATA_GATEWAY_URL);
   }
 
   throw new StorageUnavailableError(
-    "No storage provider is configured, so documents cannot be attached. Set PINATA_JWT in " +
-      "packages/nextjs/.env.local (server-side only — never prefix it with NEXT_PUBLIC_). A free key " +
-      "from pinata.cloud is enough for testnet. Everything else in this template works without it.",
+    "No storage provider is configured, so documents cannot be attached. Set either PINATA_JWT (IPFS; a free " +
+      "key from pinata.cloud is enough) or ARWEAVE_JWK (permanent storage via Irys; devnet uploads are free) " +
+      "in packages/nextjs/.env.local — server-side only, never prefixed NEXT_PUBLIC_. Everything else in this " +
+      "template works without either.",
   );
 }

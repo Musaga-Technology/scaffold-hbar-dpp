@@ -16,12 +16,17 @@ export {
   type Hip412Metadata,
 } from "./metadata.js";
 export {
+  DEFAULT_ARWEAVE_GATEWAY,
   DEFAULT_IPFS_GATEWAY,
+  contentUri,
   gatewayUrl,
   ipfsUri,
+  isLikelyArweaveId,
   isLikelyCid,
+  isLikelyContentId,
   isSha256Hex,
   readAttachments,
+  type AttachmentProtocol,
   type AttachmentState,
   type EventAttachment,
 } from "./attachments.js";

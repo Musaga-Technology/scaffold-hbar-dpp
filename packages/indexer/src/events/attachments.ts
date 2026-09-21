@@ -22,9 +22,27 @@
  * reports it, exactly as it does for a forged custody claim.
  */
 
+/**
+ * Where a document lives.
+ *
+ * IPFS content persists only while somebody keeps paying to pin it, which is a
+ * poor fit for a record that must outlive the product and, often, the company
+ * that made it. Arweave is paid once and stored by endowment, so it is the
+ * right primitive for a passport that has to still resolve in 2045.
+ *
+ * Both are content-addressed, so verification is identical either way: fetch it
+ * back and compare the hash.
+ */
+export type AttachmentProtocol = "ipfs" | "arweave";
+
 /** One content-addressed document referenced by an event. */
 export interface EventAttachment {
-  /** IPFS content identifier. */
+  /**
+   * Where the content lives. Absent means `ipfs`, so events written before
+   * Arweave support keep decoding unchanged.
+   */
+  protocol?: AttachmentProtocol;
+  /** IPFS CID, or Arweave transaction id. */
   cid: string;
   /** sha256 of the raw bytes, lowercase hex. */
   hash: string;
@@ -43,7 +61,7 @@ export type AttachmentState = "pending" | "verified" | "mismatch" | "unreachable
  * Loose CIDv0/CIDv1 shape check.
  *
  * Deliberately a shape check rather than a full multibase decode: the indexer
- * fetches the CID and hashes what comes back, so a malformed CID fails honestly
+ * fetches the id and hashes what comes back, so a malformed one fails honestly
  * at that point. This only rejects obvious nonsense before anything is stored.
  */
 export function isLikelyCid(value: unknown): value is string {
@@ -52,6 +70,25 @@ export function isLikelyCid(value: unknown): value is string {
   if (/^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(value)) return true;
   // CIDv1: base32 lowercase, starts with 'b', typically 59+ chars.
   return /^b[a-z2-7]{50,}$/.test(value);
+}
+
+/** Arweave transaction ids are exactly 43 base64url characters. */
+export function isLikelyArweaveId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value);
+}
+
+/** True when a value is a plausible content id for the given protocol. */
+export function isLikelyContentId(value: unknown, protocol: AttachmentProtocol = "ipfs"): value is string {
+  return protocol === "arweave" ? isLikelyArweaveId(value) : isLikelyCid(value);
+}
+
+/** Reads a declared protocol, defaulting to IPFS. */
+function readProtocol(value: unknown): AttachmentProtocol | undefined {
+  if (value === "arweave") return "arweave";
+  if (value === "ipfs" || value === undefined) return undefined;
+  // An unrecognised protocol is not silently treated as IPFS — the entry is
+  // dropped by the caller rather than verified against the wrong network.
+  return "unsupported" as AttachmentProtocol;
 }
 
 /** True when a value is a lowercase hex sha256. */
@@ -80,9 +117,12 @@ export function readAttachments(payload: unknown): EventAttachment[] {
     if (typeof entry !== "object" || entry === null) continue;
     const candidate = entry as Record<string, unknown>;
 
-    if (!isLikelyCid(candidate.cid) || !isSha256Hex(candidate.hash)) continue;
+    const protocol = readProtocol(candidate.protocol);
+    if (protocol !== undefined && protocol !== "arweave") continue;
+    if (!isLikelyContentId(candidate.cid, protocol ?? "ipfs") || !isSha256Hex(candidate.hash)) continue;
 
     attachments.push({
+      ...(protocol ? { protocol } : {}),
       cid: candidate.cid,
       hash: candidate.hash,
       ...(typeof candidate.name === "string" ? { name: candidate.name.slice(0, 120) } : {}),
@@ -94,21 +134,38 @@ export function readAttachments(payload: unknown): EventAttachment[] {
   return attachments;
 }
 
-/** Default public gateway used to read content back. */
+/** Default public gateway used to read IPFS content back. */
 export const DEFAULT_IPFS_GATEWAY = "https://ipfs.io";
 
+/** Default public gateway used to read Arweave content back. */
+export const DEFAULT_ARWEAVE_GATEWAY = "https://arweave.net";
+
 /**
- * Builds an HTTP URL for a CID through a gateway.
+ * Builds an HTTP URL for a content id through the right kind of gateway.
+ *
+ * The path shapes differ — IPFS serves under `/ipfs/<cid>`, Arweave serves the
+ * transaction id at the root — so the protocol has to be known, not guessed.
  *
  * @param cid Content identifier.
  * @param gateway Gateway base URL, without a trailing slash.
+ * @param protocol Which network the id belongs to.
  * @returns A fetchable URL.
  */
-export function gatewayUrl(cid: string, gateway: string = DEFAULT_IPFS_GATEWAY): string {
-  return `${gateway.replace(/\/+$/, "")}/ipfs/${cid}`;
+export function gatewayUrl(
+  cid: string,
+  gateway: string = DEFAULT_IPFS_GATEWAY,
+  protocol: AttachmentProtocol = "ipfs",
+): string {
+  const base = gateway.replace(/\/+$/, "");
+  return protocol === "arweave" ? `${base}/${cid}` : `${base}/ipfs/${cid}`;
 }
 
 /** The canonical, gateway-independent form of an attachment reference. */
+export function contentUri(cid: string, protocol: AttachmentProtocol = "ipfs"): string {
+  return protocol === "arweave" ? `ar://${cid}` : `ipfs://${cid}`;
+}
+
+/** Back-compatible alias for the IPFS form. */
 export function ipfsUri(cid: string): string {
-  return `ipfs://${cid}`;
+  return contentUri(cid, "ipfs");
 }

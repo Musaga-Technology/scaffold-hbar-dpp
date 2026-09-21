@@ -63,10 +63,14 @@ export interface PassportEventRow {
 /** What the indexer concluded about a referenced document. */
 export type AttachmentState = "pending" | "verified" | "mismatch" | "unreachable";
 
+/** Which network a document lives on. */
+export type AttachmentProtocol = "ipfs" | "arweave";
+
 export interface PassportAttachment {
   topicId: string;
   sequenceNumber: number;
   cid: string;
+  protocol: AttachmentProtocol;
   declaredHash: string;
   name: string | null;
   mediaType: string | null;

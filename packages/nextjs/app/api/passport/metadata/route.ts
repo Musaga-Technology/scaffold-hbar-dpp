@@ -84,10 +84,8 @@ export async function POST(request: Request) {
       });
       const stored = await provider.put(file);
 
-      return ok<MetadataResponse>(
-        { metadata, cid: stored.cid, uri: `ipfs://${stored.cid}`, provider: provider.name },
-        201,
-      );
+      const uri = stored.protocol === "arweave" ? `ar://${stored.cid}` : `ipfs://${stored.cid}`;
+      return ok<MetadataResponse>({ metadata, cid: stored.cid, uri, provider: provider.name }, 201);
     } catch (error) {
       if (error instanceof StorageUnavailableError) return fail("storage_unavailable", error.message);
       throw error;
