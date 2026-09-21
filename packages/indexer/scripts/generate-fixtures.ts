@@ -30,17 +30,27 @@ const TOKEN_ID = "0.0.5005";
 const CLEAN_TOPIC = "0.0.6006";
 const FORGED_TOPIC = "0.0.6007";
 
+/**
+ * Base instant for the fixture timeline.
+ *
+ * Derived from an ISO date rather than written as a raw epoch: a hand-typed
+ * epoch was previously a year out, which put the demo battery's shipping event
+ * ten months before its own manufacturing date.
+ */
+const BASE_ISO = "2026-09-21T10:00:00Z";
+const BASE_EPOCH = Math.floor(Date.parse(BASE_ISO) / 1000);
+
 const ISSUER = "0.0.1001";
 const DISTRIBUTOR = "0.0.2002";
 const RETAILER = "0.0.3003";
 
 /** Consensus timestamps are seconds.nanos strings, ascending. */
 function consensusAt(offsetSeconds: number): string {
-  return `${1758448800 + offsetSeconds}.000000000`;
+  return `${BASE_EPOCH + offsetSeconds}.000000000`;
 }
 
 function transactionId(account: string, offsetSeconds: number): string {
-  return `${account}@${1758448800 + offsetSeconds}.000000000`;
+  return `${account}@${BASE_EPOCH + offsetSeconds}.000000000`;
 }
 
 interface MessageSpec {
@@ -52,7 +62,7 @@ interface MessageSpec {
 function buildMessages(topicId: string, specs: MessageSpec[]) {
   return {
     messages: specs.map((spec, index) => {
-      const { message } = buildEvent({ ...spec.input, ts: new Date((1758448800 + spec.offsetSeconds) * 1000) });
+      const { message } = buildEvent({ ...spec.input, ts: new Date((BASE_EPOCH + spec.offsetSeconds) * 1000) });
       return {
         chunk_info: null,
         consensus_timestamp: consensusAt(spec.offsetSeconds),
