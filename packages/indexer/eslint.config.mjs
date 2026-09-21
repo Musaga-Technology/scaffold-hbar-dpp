@@ -30,7 +30,9 @@ export default defineConfig([
     },
 
     rules: {
-      "@typescript-eslint/no-unused-vars": "error",
+      // `const { id, ...rest } = row` is how we omit a column before comparing
+      // rows; the discarded sibling is the point, not an oversight.
+      "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
       "@typescript-eslint/no-explicit-any": "off",
 
       "prettier/prettier": [

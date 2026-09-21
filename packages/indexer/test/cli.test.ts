@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { describeConfig, main } from "../src/index.js";
+import { describeConfig, main, parseArgs } from "../src/index.js";
 import { loadConfig } from "../src/config.js";
 
 /** Captures CLI output so assertions can read what an operator would see. */
@@ -7,6 +7,32 @@ function capture() {
   const lines: string[] = [];
   return { sink: (line: string) => lines.push(line), text: () => lines.join("\n") };
 }
+
+describe("parseArgs", () => {
+  it("asks for help and fails when given no command", () => {
+    expect(parseArgs([])).toEqual({ kind: "help", exitCode: 1 });
+  });
+
+  it("asks for help and succeeds for an explicit help request", () => {
+    for (const flag of ["help", "--help", "-h"]) {
+      expect(parseArgs([flag])).toEqual({ kind: "help", exitCode: 0 });
+    }
+  });
+
+  it("accepts each supported command", () => {
+    for (const command of ["dev", "replay", "verify"] as const) {
+      expect(parseArgs([command])).toEqual({ kind: "run", command });
+    }
+  });
+
+  it("rejects anything else", () => {
+    const parsed = parseArgs(["frobnicate"]);
+    expect(parsed.kind).toBe("error");
+    if (parsed.kind !== "error") return;
+    expect(parsed.message).toContain('Unknown command "frobnicate"');
+    expect(parsed.exitCode).toBe(1);
+  });
+});
 
 describe("main", () => {
   const originalEnv = process.env;
@@ -16,52 +42,54 @@ describe("main", () => {
     delete process.env.INDEXER_TOPIC_IDS;
     delete process.env.PASSPORT_REGISTRY_ADDRESS;
     delete process.env.HEDERA_NETWORK;
+    delete process.env.DATABASE_URL;
   });
 
   afterEach(() => {
     process.env = originalEnv;
   });
 
-  it("prints usage and fails when given no command", () => {
+  it("prints usage and fails when given no command", async () => {
     const { sink, text } = capture();
-    expect(main([], sink)).toBe(1);
+    expect(await main([], sink)).toBe(1);
     expect(text()).toContain("yarn indexer:dev");
   });
 
-  it("prints usage and succeeds for an explicit help request", () => {
-    for (const flag of ["help", "--help", "-h"]) {
-      const { sink, text } = capture();
-      expect(main([flag], sink)).toBe(0);
-      expect(text()).toContain("product-passport indexer");
-    }
+  it("prints usage and succeeds for an explicit help request", async () => {
+    const { sink, text } = capture();
+    expect(await main(["--help"], sink)).toBe(0);
+    expect(text()).toContain("product-passport indexer");
   });
 
-  it("rejects an unknown command and shows usage", () => {
+  it("rejects an unknown command and shows usage", async () => {
     const { sink, text } = capture();
-    expect(main(["frobnicate"], sink)).toBe(1);
+    expect(await main(["frobnicate"], sink)).toBe(1);
     expect(text()).toContain('Unknown command "frobnicate"');
   });
 
-  it("refuses to start when nothing is configured to index", () => {
+  it("refuses to start when nothing is configured to index", async () => {
     const { sink, text } = capture();
-    expect(main(["dev"], sink)).toBe(1);
+    expect(await main(["dev"], sink)).toBe(1);
     expect(text()).toContain("Nothing to index");
     expect(text()).toContain("yarn passport:bootstrap");
   });
 
-  it("accepts a known command once a topic is configured", () => {
-    process.env.INDEXER_TOPIC_IDS = "0.0.12345";
-    const { sink, text } = capture();
-    expect(main(["dev"], sink)).toBe(0);
-    expect(text()).toContain("0.0.12345");
-  });
-
-  it("reports a malformed environment instead of throwing", () => {
+  it("reports a malformed environment instead of throwing", async () => {
     process.env.INDEXER_TOPIC_IDS = "0.0.1";
     process.env.HEDERA_NETWORK = "devnet";
     const { sink, text } = capture();
-    expect(main(["dev"], sink)).toBe(1);
+    expect(await main(["dev"], sink)).toBe(1);
     expect(text()).toContain("Configuration error");
+  });
+
+  it("says plainly that Postgres is not wired up yet, rather than silently using SQLite", async () => {
+    process.env.INDEXER_TOPIC_IDS = "0.0.1";
+    process.env.DATABASE_URL = "postgres://localhost/passport";
+    const { sink, text } = capture();
+
+    expect(await main(["verify"], sink)).toBe(1);
+    expect(text()).toContain("DATABASE_URL");
+    expect(text()).toContain("not implemented yet");
   });
 });
 
