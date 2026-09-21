@@ -50,6 +50,7 @@
       "packages/nextjs/app/verify/[serial]/page.tsx",
       ".harness/spec.yaml",
       "packages/hardhat/scripts/status.ts",
+      "packages/nextjs/Dockerfile",
       "packages/indexer/Dockerfile",
       "docker-compose.yml"
     ],

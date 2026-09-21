@@ -121,13 +121,43 @@ Attachments — certificates, photos, test reports — are referenced by hash an
 | `yarn hardhat:test:forking` | Optional tests against a Hedera fork |
 | `yarn lint` / `yarn format` | All three workspaces |
 
-## Deployment
+## Running it somewhere other than your laptop
 
-**App.** Deploy with Vercel — the app renders the fixture passport with zero environment configuration, so a first deploy is never broken. Set `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` as encrypted environment variables to enable the server routes that create topics and submit events _(increment 04)_.
+This template is two processes, not one. The app serves pages; the indexer is a
+long-running poller with a database. Any hosting story that only covers the app
+covers half the system.
 
-**Indexer.** `docker compose up indexer` runs the indexer against Postgres; `yarn indexer:dev` stays the zero-setup SQLite path _(increment 04)_.
+### Self-host — the whole thing, one command
 
-Deployment is always an explicit command after funding — never a side effect of scaffolding or CI.
+```bash
+docker compose up
+```
+
+Brings up the app, the indexer and Postgres together, on any machine that runs
+containers: your own box, a VM, on-prem, or any cloud. Nothing here is tied to a
+particular vendor. Set `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` in
+the environment to enable the routes that create topics and submit events; leave
+them unset and the app still serves the demo passport _(increment 04)_.
+
+The indexer is a plain container, so Fly.io, Railway, Render, ECS or a systemd
+unit all work the same way — see `packages/indexer/Dockerfile` _(increment 04)_.
+
+### One-click preview — the public page only
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+
+Useful for putting the public verify page in front of someone in about thirty
+seconds: it renders from bundled fixtures, so a first deploy needs no
+environment at all and cannot be broken by missing configuration.
+
+**This deploys the app, not the system.** Serverless platforms cannot run the
+indexer — it needs a persistent process and a database — so a passport deployed
+this way shows demo data until you point `INDEX_API_URL` at an indexer hosted
+somewhere that can run one. The same applies to any platform of this shape; it is
+not a Vercel-specific limitation.
+
+Deployment is always an explicit command after funding — never a side effect of
+scaffolding or CI.
 
 ## Extending it
 

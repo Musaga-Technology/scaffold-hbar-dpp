@@ -86,6 +86,7 @@ requiredFiles:
   - packages/hardhat/contracts/test/MockHTS.sol
   - packages/hardhat/scripts/bootstrap.ts
   - packages/hardhat/scripts/status.ts
+  - packages/nextjs/Dockerfile
   - packages/indexer/Dockerfile
   - packages/indexer/package.json
   - packages/indexer/src/index.ts
