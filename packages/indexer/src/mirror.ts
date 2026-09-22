@@ -71,7 +71,11 @@ export class MirrorNodeClient {
    * @param limit Page size.
    */
   async fetchTopicMessages(topicId: string, afterSequence = 0, limit = 100): Promise<TopicMessagePage> {
-    const route = `/api/v1/topics/${topicId}/messages` + `?sequencenumber=gt:${afterSequence}&limit=${limit}&order=asc`;
+    // Sequence numbers are 1-based, so `gt:0` is not "from the beginning" — the
+    // mirror node rejects it outright with "Invalid parameter: sequencenumber".
+    // Reading from scratch means sending no filter at all.
+    const filter = afterSequence > 0 ? `sequencenumber=gt:${afterSequence}&` : "";
+    const route = `/api/v1/topics/${topicId}/messages?${filter}limit=${limit}&order=asc`;
     const page = await this.get<{ messages?: MirrorTopicMessage[]; links?: { next?: string | null } }>(route);
 
     return {

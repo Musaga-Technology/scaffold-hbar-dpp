@@ -4030,6 +4030,7 @@ __metadata:
     ajv: ^8.20.0
     ajv-formats: ^3.0.1
     better-sqlite3: ^13.0.3
+    dotenv: ^18.0.2
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     eslint: ~9.23.0
@@ -8374,6 +8375,15 @@ __metadata:
   dependencies:
     esutils: ^2.0.2
   checksum: a45e277f7feaed309fe658ace1ff286c6e2002ac515af0aaf37145b8baa96e49899638c7cd47dccf84c3d32abfc113246625b3ac8f552d1046072adee13b0dc8
+  languageName: node
+  linkType: hard
+
+"dotenv@npm:^18.0.2":
+  version: 18.0.2
+  resolution: "dotenv@npm:18.0.2"
+  bin:
+    dotenv: dist/index.cjs
+  checksum: d7ce0333a23cfc66a805600eb7bad3e98ed746091cb490d195069c6e7f2979026735924e4f3150cde16a772dfbc53cedb3381bee45dd0ab05205593c2fbeab56
   languageName: node
   linkType: hard
 

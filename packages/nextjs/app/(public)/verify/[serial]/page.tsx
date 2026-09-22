@@ -4,11 +4,12 @@ import type { Metadata } from "next";
 import { DemoBanner } from "~~/components/passport/DemoBanner";
 import { Documents } from "~~/components/passport/Documents";
 import { IdentifierCard } from "~~/components/passport/IdentifierCard";
+import { IndexUnavailable } from "~~/components/passport/IndexUnavailable";
 import { QrPanel } from "~~/components/passport/QrPanel";
 import { StatusBadge } from "~~/components/passport/StatusBadge";
 import { Timeline } from "~~/components/passport/Timeline";
 import { verifyPath } from "~~/lib/hashscan";
-import { getPassport, isDemoMode } from "~~/lib/indexClient";
+import { IndexUnavailableError, getPassport, isDemoMode } from "~~/lib/indexClient";
 
 /**
  * The public passport page.
@@ -50,7 +51,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const serial = parseSerial(raw);
   if (serial === undefined) return { title: "Passport not found" };
 
-  const passport = await getPassport(serial);
+  let passport;
+  try {
+    passport = await getPassport(serial);
+  } catch {
+    return { title: `Passport ${serial}` };
+  }
   const name = passport?.product.name ?? `Serial ${serial}`;
   return {
     title: `${name} — Digital Product Passport`,
@@ -63,7 +69,18 @@ const Verify = async ({ params }: PageProps) => {
   const serial = parseSerial(raw);
   if (serial === undefined) notFound();
 
-  const passport = await getPassport(serial);
+  let passport;
+  try {
+    passport = await getPassport(serial);
+  } catch (error) {
+    // A configured-but-silent indexer is a setup problem, not a missing
+    // passport. Saying "not found" here would send someone hunting for a
+    // product that exists.
+    if (error instanceof IndexUnavailableError) {
+      return <IndexUnavailable url={error.url} detail={error.detail} />;
+    }
+    throw error;
+  }
   if (!passport) notFound();
 
   const { product, events, attachments } = passport;

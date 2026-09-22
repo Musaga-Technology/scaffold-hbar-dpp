@@ -114,6 +114,29 @@ export interface IndexStats {
 export type DataSource = "fixtures" | "http";
 
 /**
+ * The index API is configured but not answering.
+ *
+ * Deliberately an error rather than a quiet fall back to fixtures. Showing demo
+ * data to someone who has connected a real registry is the single most
+ * confusing thing this app could do — their own product would be invisible and
+ * everything would look like it worked. Say what is wrong and what to run.
+ */
+export class IndexUnavailableError extends Error {
+  readonly code = "index_unavailable";
+
+  constructor(
+    readonly url: string,
+    readonly detail: string,
+  ) {
+    super(
+      `The index API at ${url} is not answering (${detail}). ` +
+        "Start it with `yarn indexer:dev`, or unset INDEX_API_URL to go back to demo fixtures.",
+    );
+    this.name = "IndexUnavailableError";
+  }
+}
+
+/**
  * Decides where reads come from.
  *
  * Fixtures win unless an index API is configured, and PASSPORT_DATA_SOURCE can
@@ -147,10 +170,20 @@ function indexApiUrl(path: string): string {
  * @throws When the index API is unreachable or errors.
  */
 async function fetchFromIndex<T>(path: string): Promise<T | undefined> {
-  const response = await fetch(indexApiUrl(path), { cache: "no-store" });
+  const url = indexApiUrl(path);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { cache: "no-store" });
+  } catch (error) {
+    // Connection refused is the common case: INDEX_API_URL is set but nobody
+    // ran `yarn indexer:dev`.
+    throw new IndexUnavailableError(url, error instanceof Error ? error.message : String(error));
+  }
+
   if (response.status === 404) return undefined;
   if (!response.ok) {
-    throw new Error(`Index API ${path} failed: ${response.status} ${response.statusText}`);
+    throw new IndexUnavailableError(url, `${response.status} ${response.statusText}`);
   }
   return (await response.json()) as T;
 }

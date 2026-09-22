@@ -200,3 +200,36 @@ describe("syncTransfers", () => {
     expect(transfers[0]!.isMint).toBe(true);
   });
 });
+
+describe("mirror node query shape", () => {
+  it("never sends sequencenumber=gt:0 when reading from the beginning", async () => {
+    // Hedera sequence numbers are 1-based, so gt:0 is not an empty lower bound —
+    // the real mirror node rejects it with 400 "Invalid parameter:
+    // sequencenumber". This went unnoticed until the indexer was pointed at a
+    // live testnet topic, because the test double used to accept anything.
+    const store = await createMemoryStore();
+    try {
+      const { client, requests } = createFakeMirror();
+      const result = await pollTopic(store, client, CLEAN_TOPIC);
+
+      expect(result.written).toBeGreaterThan(0);
+      expect(requests.some(route => /sequencenumber=gt:0(?!\d)/.test(route))).toBe(false);
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("does send a lower bound once it has a cursor", async () => {
+    const store = await createMemoryStore();
+    try {
+      const { client, requests } = createFakeMirror();
+      await pollTopic(store, client, CLEAN_TOPIC);
+      requests.length = 0;
+
+      await pollTopic(store, client, CLEAN_TOPIC);
+      expect(requests.some(route => route.includes("sequencenumber=gt:5"))).toBe(true);
+    } finally {
+      await store.close();
+    }
+  });
+});

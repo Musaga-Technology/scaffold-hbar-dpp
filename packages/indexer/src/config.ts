@@ -1,4 +1,24 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+
 import { DEFAULT_ARWEAVE_GATEWAY, DEFAULT_IPFS_GATEWAY } from "./events/index.js";
+
+/**
+ * Loads the workspace's env files before any config is read.
+ *
+ * `yarn passport:bootstrap` writes `.env.local` here with the registry address
+ * and the demo product's topic, and the CLI's own help text says so — but until
+ * this existed nothing loaded it. The file was written and ignored, so a
+ * developer who followed the quick start exactly ended up with an indexer that
+ * reported "no topics to index" while its configuration sat on disk beside it.
+ *
+ * `.env.local` takes precedence over `.env`, and neither overrides a variable
+ * already set in the real environment, which is what Docker and CI rely on.
+ */
+const WORKSPACE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+dotenv.config({ path: path.join(WORKSPACE_ROOT, ".env.local") });
+dotenv.config({ path: path.join(WORKSPACE_ROOT, ".env") });
 
 /**
  * Indexer configuration, resolved from the environment.

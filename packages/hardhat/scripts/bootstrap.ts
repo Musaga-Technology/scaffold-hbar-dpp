@@ -328,12 +328,19 @@ async function main(): Promise<void> {
 
   // ----------------------------------------------------------------- env files
   heading("5. Configuration");
+  const indexApiUrl = process.env.INDEX_API_URL ?? `http://localhost:${process.env.INDEXER_PORT ?? 3001}`;
+
   writeEnvLocal(
     path.join(REPO_ROOT, "packages", "nextjs", ".env.local"),
     {
       NEXT_PUBLIC_PASSPORT_REGISTRY_ADDRESS: state.registryAddress!,
       NEXT_PUBLIC_PASSPORT_TOKEN_ID: tokenId,
       NEXT_PUBLIC_HEDERA_NETWORK: network,
+      // Without this the app keeps serving bundled demo fixtures, so a
+      // successful bootstrap would look like it had done nothing: the freshly
+      // registered product would be invisible and /verify/1 would still show
+      // the demo battery.
+      INDEX_API_URL: indexApiUrl,
     },
     "Public values only — the operator key stays server-side.",
   );

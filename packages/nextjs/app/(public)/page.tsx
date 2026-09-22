@@ -2,10 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon, CubeTransparentIcon, LinkIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 import { DemoBanner } from "~~/components/passport/DemoBanner";
+import { IndexUnavailable } from "~~/components/passport/IndexUnavailable";
 import { SerialSearch } from "~~/components/passport/SerialSearch";
 import { StatTiles } from "~~/components/passport/StatTiles";
 import { network } from "~~/lib/hashscan";
-import { getStats, isDemoMode, listProducts } from "~~/lib/indexClient";
+import { IndexUnavailableError, getStats, isDemoMode, listProducts } from "~~/lib/indexClient";
 
 /**
  * Landing page.
@@ -17,7 +18,16 @@ import { getStats, isDemoMode, listProducts } from "~~/lib/indexClient";
 export const dynamic = "force-dynamic";
 
 const Home = async () => {
-  const [stats, products] = await Promise.all([getStats(), listProducts()]);
+  let stats;
+  let products;
+  try {
+    [stats, products] = await Promise.all([getStats(), listProducts()]);
+  } catch (error) {
+    if (error instanceof IndexUnavailableError) {
+      return <IndexUnavailable url={error.url} detail={error.detail} />;
+    }
+    throw error;
+  }
   const demo = isDemoMode();
 
   return (

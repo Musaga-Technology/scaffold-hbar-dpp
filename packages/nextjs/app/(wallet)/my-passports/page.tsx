@@ -1,6 +1,7 @@
 import { HeldPassports } from "~~/components/passport/HeldPassports";
+import { IndexUnavailable } from "~~/components/passport/IndexUnavailable";
 import { WalletGate } from "~~/components/passport/WalletGate";
-import { listProducts } from "~~/lib/indexClient";
+import { IndexUnavailableError, listProducts } from "~~/lib/indexClient";
 
 /**
  * Passports held by the connected wallet.
@@ -12,7 +13,15 @@ import { listProducts } from "~~/lib/indexClient";
 export const dynamic = "force-dynamic";
 
 const MyPassports = async () => {
-  const products = await listProducts();
+  let products;
+  try {
+    products = await listProducts();
+  } catch (error) {
+    if (error instanceof IndexUnavailableError) {
+      return <IndexUnavailable url={error.url} detail={error.detail} />;
+    }
+    throw error;
+  }
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-10">

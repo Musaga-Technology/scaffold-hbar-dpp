@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { IndexUnavailable } from "~~/components/passport/IndexUnavailable";
 import { RegisterProductForm } from "~~/components/passport/RegisterProductForm";
 import { WalletGate } from "~~/components/passport/WalletGate";
-import { listProducts } from "~~/lib/indexClient";
+import { IndexUnavailableError, listProducts } from "~~/lib/indexClient";
 
 /**
  * Issuer dashboard.
@@ -14,7 +15,15 @@ import { listProducts } from "~~/lib/indexClient";
 export const dynamic = "force-dynamic";
 
 const Issuer = async () => {
-  const products = await listProducts();
+  let products;
+  try {
+    products = await listProducts();
+  } catch (error) {
+    if (error instanceof IndexUnavailableError) {
+      return <IndexUnavailable url={error.url} detail={error.detail} />;
+    }
+    throw error;
+  }
   const tokenId = process.env.NEXT_PUBLIC_PASSPORT_TOKEN_ID;
 
   return (
