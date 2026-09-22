@@ -12,6 +12,7 @@ import {
   describeShortfall,
   formatHbar,
   hbarToTinybar,
+  isWellKnownTestAddress,
   resolveCollectionFeeHbar,
   tinybarToHbar,
 } from "../scripts/lib/preflight";
@@ -420,5 +421,18 @@ describe("registering another product", function () {
     }
     startNewProduct(state);
     expect(state.previousProducts!.map(product => product.serial)).to.deep.equal([1, 2, 3]);
+  });
+});
+
+describe("deployer safety", function () {
+  it("recognises the public Hardhat test account in any case", function () {
+    expect(isWellKnownTestAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")).to.equal(true);
+    expect(isWellKnownTestAddress("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266")).to.equal(true);
+  });
+
+  it("does not flag a real deployer", function () {
+    // hardhat.config falls back to that key, so bootstrap refuses to deploy a
+    // registry whose owner key is published in every Hardhat tutorial.
+    expect(isWellKnownTestAddress("0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA")).to.equal(false);
   });
 });

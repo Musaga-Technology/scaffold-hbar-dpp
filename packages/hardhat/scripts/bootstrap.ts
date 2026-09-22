@@ -35,6 +35,7 @@ import {
   describeShortfall,
   formatHbar,
   hbarToTinybar,
+  isWellKnownTestAddress,
   resolveCollectionFeeHbar,
   tinybarToHbar,
 } from "./lib/preflight";
@@ -134,15 +135,35 @@ async function main(): Promise<void> {
   heading(`Bootstrapping product-passport on ${network}`);
   console.log(`  deployer: ${deployer}`);
 
+  // Refuse before anything is deployed or paid for. Reached by running this
+  // script directly instead of through `yarn passport:bootstrap`, which
+  // decrypts the real key: hardhat.config falls back to the public Hardhat test
+  // key, and that account happens to be funded on Hedera testnet, so the run
+  // would otherwise succeed and hand the registry to a key everybody has.
+  if (isWellKnownTestAddress(deployer)) {
+    throw new Error(
+      `The deployer is ${deployer}, the public Hardhat test account. Its private key is in every\n` +
+        "Hardhat tutorial, so anything deployed with it belongs to whoever wants it.\n\n" +
+        "Run `yarn passport:bootstrap`, which decrypts your own key, rather than calling this script\n" +
+        "directly. If you meant to use your own account, run `yarn hardhat:account:generate` or\n" +
+        "`yarn hardhat:account:import` first.",
+    );
+  }
+
   // ---------------------------------------------------------------- preflight
   const balanceTinybar = await hre.ethers.provider.getBalance(deployer);
   // Hedera reports EVM balances in weibars (18 decimals); tinybars are 8.
   const balanceHbar = tinybarToHbar(balanceTinybar / 10_000_000_000n);
 
   let registryAddress = state.registryAddress;
+  // Where the address came from, so "reusing 0x…" is not mysterious. Deleting
+  // passport.state.json alone does not give a fresh registry: hardhat-deploy's
+  // artifact is the fallback, and it is easy to delete one and not the other.
+  let registrySource = registryAddress ? "passport.state.json" : undefined;
   if (!registryAddress) {
     const existing = await hre.deployments.getOrNull("PassportRegistry");
     registryAddress = existing?.address;
+    if (registryAddress) registrySource = `deployments/${hre.network.name}`;
   }
 
   let collectionAddress = state.collectionAddress;
@@ -182,7 +203,7 @@ async function main(): Promise<void> {
     registryAddress = deployment.address;
     console.log(`  deployed at ${registryAddress}`);
   } else {
-    console.log(`  reusing ${registryAddress}`);
+    console.log(`  reusing ${registryAddress} (from ${registrySource})`);
   }
   state.registryAddress = registryAddress;
   state.deployerAddress = deployer;

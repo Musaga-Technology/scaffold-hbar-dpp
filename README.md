@@ -127,6 +127,28 @@ everything else still runs.
 it again. Finished steps are skipped, not paid for twice. If anything looks
 wrong, `yarn passport:status` checks every entity against the mirror node.
 
+### Starting over with a fresh registry
+
+The bootstrap records what it has already done, so a second run reuses it. To
+deploy a brand-new registry — a clean demo, a different account, a fresh
+recording — remove both of these:
+
+```bash
+rm packages/hardhat/passport.state.json          # what bootstrap recorded
+rm -rf packages/hardhat/deployments/hederaTestnet # the deployment artifact it falls back to
+rm -rf packages/indexer/data                      # optional: forget the old products too
+```
+
+Both are gitignored and local. **Removing them deletes nothing on Hedera** —
+the old registry, collection, serials and topics stay on the ledger forever,
+and their passports keep verifying for anyone holding the links. You are only
+forgetting them locally.
+
+The next `yarn passport:bootstrap` deploys a new registry, creates a new
+collection, and rewrites the registry address in both `.env.local` files. It
+costs the full setup again, around 25 HBAR. Restart the indexer afterwards so
+it follows the new registry.
+
 > **It registers a product for you.** When the bootstrap finishes you already own
 > a live passport: serial 1, with a topic carrying its first three lifecycle
 > events. `/verify/1` is now that product, not the demo.
@@ -305,6 +327,7 @@ Leave them unset and the two write routes return 503 with instructions.
 | `HtsCreateFailed(9)` | Token creation fee too low — raise `BOOTSTRAP_COLLECTION_FEE_HBAR` |
 | Passport stuck on `pending` | The indexer has not caught up. Is `yarn indexer:dev` running? |
 | Issuer page says "No registry configured" | Run `yarn passport:bootstrap` first |
+| Bootstrap reuses a registry you wanted gone | It prints where the address came from — see [Starting over](#starting-over-with-a-fresh-registry); the deployment artifact is a second place it looks |
 | Anything else | `yarn passport:status` — it checks every entity and needs no key |
 
 `npx hedera-harness validate` reports `packages/hardhat/.env` as a forbidden file

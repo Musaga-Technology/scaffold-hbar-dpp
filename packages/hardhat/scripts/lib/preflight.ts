@@ -17,6 +17,26 @@ export const DEPLOY_COST_HBAR = 2;
 /** Estimated HBAR cost of creating the topic and submitting the demo events. */
 export const TOPIC_AND_EVENTS_COST_HBAR = 1;
 
+/**
+ * Address of the Hardhat test key that `hardhat.config.ts` falls back to.
+ *
+ * `0xac0974be…f2ff80` is in every Hardhat tutorial and every CI fixture, so
+ * anyone can sign for this address. The fallback is right for a local fork and
+ * dangerous anywhere else: on a public network it would deploy a registry whose
+ * owner key is common knowledge — and somebody has funded this account on
+ * Hedera testnet, so it would not even fail for lack of HBAR.
+ */
+export const WELL_KNOWN_TEST_ADDRESS = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+
+/**
+ * True when an address is the public Hardhat test account.
+ *
+ * @param address EVM address, any case.
+ */
+export function isWellKnownTestAddress(address: string): boolean {
+  return address.toLowerCase() === WELL_KNOWN_TEST_ADDRESS;
+}
+
 /** Extra HBAR kept back so a fee estimate that runs slightly high does not strand the run. */
 export const BUFFER_HBAR = 2;
 
