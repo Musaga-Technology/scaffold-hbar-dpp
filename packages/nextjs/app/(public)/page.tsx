@@ -1,6 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon, CheckBadgeIcon, DocumentCheckIcon, LinkIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowRightIcon,
+  CheckBadgeIcon,
+  ChevronRightIcon,
+  DocumentCheckIcon,
+  LinkIcon,
+} from "@heroicons/react/24/outline";
 import { DemoBanner } from "~~/components/passport/DemoBanner";
 import { IndexUnavailable } from "~~/components/passport/IndexUnavailable";
 import { SerialSearch } from "~~/components/passport/SerialSearch";
@@ -95,34 +101,44 @@ const Home = async () => {
         )}
 
         {products.length > 0 && (
-          <section className="mb-10">
-            <h2 className="mb-3 mt-0 text-lg font-bold">
+          <section className="mb-10 mt-8">
+            <h2 className="mb-1 mt-0 text-lg font-bold">
               {products.length === 1 ? "The passport in this registry" : `All ${products.length} passports`}
             </h2>
+            {/* Said out loud, because a row of cards does not announce that it is
+                a list of links — the first person to use this looked for one and
+                typed the URL by hand instead. */}
+            <p className="mb-3 mt-0 text-sm text-base-content/60">Open one to see its history and checks.</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {products.map(product => (
                 <Link
                   key={product.serial}
                   href={`/verify/${product.serial}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-base-300 bg-base-100 p-4 transition-colors hover:border-primary"
+                  className="group flex items-center justify-between gap-3 rounded-xl border border-base-300 bg-base-100 p-4 transition-colors hover:border-primary hover:bg-primary/5"
                 >
                   <div className="min-w-0">
-                    <div className="truncate font-semibold">{product.name ?? `Serial ${product.serial}`}</div>
-                    <div className="text-xs text-base-content/60">
+                    {/* Serial first: every product in a registry can share a
+                        name, and two rows reading the same is what made this
+                        list look inert. */}
+                    <div className="text-xs font-semibold text-primary">
                       Serial {product.serial}
                       {product.category ? ` · ${product.category}` : ""}
                     </div>
+                    <div className="truncate font-semibold">{product.name ?? `Passport ${product.serial}`}</div>
                   </div>
-                  <span
-                    className={`badge badge-sm shrink-0 ${
-                      product.status === "verified"
-                        ? "badge-success"
-                        : product.status === "discrepancy"
-                          ? "badge-error"
-                          : "badge-warning"
-                    }`}
-                  >
-                    {product.status}
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={`badge badge-sm ${
+                        product.status === "verified"
+                          ? "badge-success"
+                          : product.status === "discrepancy"
+                            ? "badge-error"
+                            : "badge-warning"
+                      }`}
+                    >
+                      {product.status}
+                    </span>
+                    <ChevronRightIcon className="h-4 w-4 text-base-content/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                   </span>
                 </Link>
               ))}

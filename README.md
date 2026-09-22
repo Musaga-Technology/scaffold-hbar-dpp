@@ -173,11 +173,6 @@ declaration back as a CAR from a public gateway it does not trust, checks it
 against the CID, and reports it verified. The links above open through
 `inbrowser.link`, which does the same check in your browser.
 
-Serial 1, on topic [`0.0.10649383`](https://hashscan.io/testnet/topic/0.0.10649383),
-is the first bootstrap from the day before, made before documents were
-attached. Its metadata points at the app rather than IPFS, which is exactly the
-weakness serial 2 was made to fix.
-
 ## What you need installed
 
 | Path | Requirement |

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SendToConsumer } from "./SendToConsumer";
 import { isAddress } from "viem";
 import { useAccount } from "wagmi";
@@ -78,8 +78,21 @@ export const ManagePassport = ({
     { cid: string; hash: string; name: string; type: string; bytes: number } | undefined
   >();
 
+  // Undefined until asked, so nothing is claimed before the answer arrives.
+  const [storageConfigured, setStorageConfigured] = useState<boolean | undefined>();
   const [recipient, setRecipient] = useState("");
   const [transferring, setTransferring] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/passport/attachments")
+      .then(response => (response.ok ? response.json() : undefined))
+      .then(body => !cancelled && setStorageConfigured(Boolean(body?.configured)))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fields = PAYLOAD_FIELDS[type] ?? FALLBACK_FIELDS;
 
@@ -262,6 +275,14 @@ export const ManagePassport = ({
                 setPinned(undefined);
               }}
             />
+            {storageConfigured === false && (
+              <span className="mt-1 text-xs text-warning">
+                No storage provider is configured, so documents cannot be attached yet. Set{" "}
+                <code className="rounded bg-base-300/50 px-1">PINATA_JWT</code> in{" "}
+                <code className="rounded bg-base-300/50 px-1">packages/nextjs/.env.local</code> — a free key is enough.
+                Everything else on this page works without it.
+              </span>
+            )}
             <span className="mt-1 text-xs text-base-content/60">
               Pinned to IPFS and referenced by CID. The document never goes on HCS — the event carries its content
               address and a sha256 of the bytes, and the indexer fetches it back to confirm it is still the document

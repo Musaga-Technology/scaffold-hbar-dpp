@@ -16,6 +16,17 @@ import {
  *
  * Nothing about the document reaches HCS. That is the point.
  */
+/**
+ * Whether documents can be attached at all.
+ *
+ * So the issuer form can say up front that no storage is configured, instead of
+ * letting someone choose a file and only then fail. Reports no credentials and
+ * nothing about them — only whether one is present.
+ */
+export async function GET() {
+  return guard(async () => ok({ configured: hasStorageProvider(), maxBytes: MAX_DOCUMENT_BYTES }));
+}
+
 export async function POST(request: Request) {
   return guard(async () => {
     if (!hasStorageProvider()) {
