@@ -32,6 +32,14 @@ export interface PassportState {
   metadataPointer?: string;
   /** Hedera transaction ids of the demo events submitted to the topic. */
   eventTransactionIds?: string[];
+  /** CID of the demo document attached to the inspection event, when one was pinned. */
+  documentCid?: string;
+  /**
+   * Products registered by earlier runs, kept when `BOOTSTRAP_NEW_PRODUCT=true`
+   * starts another. Their topics stay in the indexer's list, so registering a
+   * second product never makes the first one disappear.
+   */
+  previousProducts?: Array<{ serial: number; topicId: string; metadataPointer?: string; documentCid?: string }>;
   /** ISO timestamp of the last successful bootstrap step. */
   updatedAt?: string;
 }

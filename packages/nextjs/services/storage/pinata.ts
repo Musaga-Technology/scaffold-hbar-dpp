@@ -21,12 +21,17 @@ import {
 import { computeCid } from "@sh/indexer/content/ipfs";
 import "server-only";
 
-const PINATA_PIN_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
+/**
+ * Pinata's v3 upload API.
+ *
+ * Not the legacy `pinFileToIPFS`: that endpoint needs a legacy scope that keys
+ * created today do not carry by default, so a freshly made scoped key fails
+ * there with `NO_SCOPES_FOUND` while working here.
+ */
+const PINATA_UPLOAD_URL = "https://uploads.pinata.cloud/v3/files";
 
 interface PinataResponse {
-  IpfsHash?: string;
-  PinSize?: number;
-  error?: unknown;
+  data?: { cid?: string };
 }
 
 /**
@@ -55,13 +60,14 @@ export function createPinataProvider(jwt: string, gateway?: string): StorageProv
 
       const form = new FormData();
       form.append("file", file, file.name);
-      // Explicit rather than relying on Pinata's default, because computeCid
-      // assumes CIDv1 with raw leaves and the two must agree.
-      form.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
+      // Public, so any gateway can serve it back for verification. v3 always
+      // produces CIDv1 with raw leaves, which is what computeCid assumes —
+      // checked against the live API at 78 B, 256 KiB + 1 and 3 MiB.
+      form.append("network", "public");
 
       let response: Response;
       try {
-        response = await fetch(PINATA_PIN_URL, {
+        response = await fetch(PINATA_UPLOAD_URL, {
           method: "POST",
           headers: { authorization: `Bearer ${jwt}` },
           body: form,
@@ -79,17 +85,17 @@ export function createPinataProvider(jwt: string, gateway?: string): StorageProv
         );
       }
 
-      const body = (await response.json()) as PinataResponse;
-      if (!body.IpfsHash) {
+      const pinned = ((await response.json()) as PinataResponse).data?.cid;
+      if (!pinned) {
         throw new StorageUnavailableError("Pinata accepted the upload but returned no CID.");
       }
 
-      if (body.IpfsHash !== cid) {
+      if (pinned !== cid) {
         // Committing Pinata's CID would put an address on the ledger that this
         // server never checked; committing ours would reference content Pinata
         // may not be serving. Neither is safe, so the upload is refused.
         throw new StorageUnavailableError(
-          `Pinata stored the document as ${body.IpfsHash}, but its bytes hash to ${cid}. ` +
+          `Pinata stored the document as ${pinned}, but its bytes hash to ${cid}. ` +
             "Refusing to attest an address that does not match the content. This usually means the provider " +
             "chunked the file differently; check its CID version settings.",
         );

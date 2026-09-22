@@ -17,7 +17,9 @@ import {
 } from "../scripts/lib/preflight";
 import { emptyState, readState, remainingSteps, writeState, type PassportState } from "../scripts/lib/state";
 import { buildEvent, canonicalize, sha256Hex } from "../scripts/lib/events";
-import { demoProductHash } from "../scripts/lib/demoProduct";
+import { DEMO_DOCUMENT, DEMO_EVENTS, demoProductHash } from "../scripts/lib/demoProduct";
+import { mergeEnvFile } from "../scripts/lib/envFile";
+import { SINGLE_BLOCK_MAX_BYTES, rawCid } from "../scripts/lib/storage";
 import { hashscan, resolveNetwork } from "../scripts/lib/hedera";
 
 const ALL_WORK = {
@@ -268,5 +270,94 @@ describe("network resolution", function () {
     expect(hashscan.token("testnet", "0.0.5005")).to.equal("https://hashscan.io/testnet/token/0.0.5005");
     expect(hashscan.serial("testnet", "0.0.5005", 1)).to.equal("https://hashscan.io/testnet/token/0.0.5005/1");
     expect(hashscan.topic("mainnet", "0.0.6006")).to.equal("https://hashscan.io/mainnet/topic/0.0.6006");
+  });
+});
+
+describe("demo document", function () {
+  it("fits the inspection event under the 1024-byte HCS limit with its attachment", function () {
+    // The real shape the bootstrap submits: a CIDv1 raw CID, a sha256, and the
+    // declared name, type and size. If the demo payload grows, this fails
+    // before a testnet run does.
+    const bytes = new TextEncoder().encode(DEMO_DOCUMENT.body);
+    const inspected = DEMO_EVENTS.find(demo => demo.type === "product.inspected")!;
+    const { message } = buildEvent({
+      type: "product.inspected",
+      serial: 999_999,
+      tokenId: "0.0.99999999",
+      actor: "0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA",
+      payload: {
+        ...inspected.payload,
+        attachments: [
+          {
+            cid: rawCid(bytes),
+            hash: sha256Hex(DEMO_DOCUMENT.body),
+            name: DEMO_DOCUMENT.name,
+            type: DEMO_DOCUMENT.type,
+            bytes: bytes.byteLength,
+          },
+        ],
+      },
+    });
+    expect(Buffer.byteLength(message, "utf8")).to.be.lessThan(1024);
+  });
+
+  it("is a single block, so the bootstrap can compute its CID without IPFS libraries", function () {
+    expect(new TextEncoder().encode(DEMO_DOCUMENT.body).byteLength).to.be.at.most(SINGLE_BLOCK_MAX_BYTES);
+  });
+});
+
+describe("raw CIDs", function () {
+  it("encodes a small document's sha256 as a CIDv1 raw CID", function () {
+    // Independently known value, and what the indexer's computeCid produces.
+    expect(rawCid(new TextEncoder().encode("hello world"))).to.equal(
+      "bafkreifzjut3te2nhyekklss27nh3k72ysco7y32koao5eei66wof36n5e",
+    );
+  });
+
+  it("matches Kubo at exactly one chunk", function () {
+    // Same vector as packages/indexer/test/ipfs.test.ts, computed with Kubo 0.43.1.
+    const bytes = Uint8Array.from({ length: 262_144 }, (_, i) => (i * 31) % 251);
+    expect(rawCid(bytes)).to.equal("bafkreihcplssjx4a7ixm3txfegx65okzxd5iwk4yanaxly44vbuzqoljvy");
+  });
+
+  it("refuses a document that would span more than one block", function () {
+    // Past one chunk the CID is a DAG root, not a hash of the file; computing it
+    // here would need the IPFS libraries this workspace cannot load.
+    expect(() => rawCid(new Uint8Array(SINGLE_BLOCK_MAX_BYTES + 1))).to.throw(/single-block/);
+  });
+});
+
+describe("env file merging", function () {
+  it("keeps keys the bootstrap does not own — the PINATA_JWT case", function () {
+    const existing = "PINATA_JWT=eyJ.secret.value\nINDEX_API_URL=http://old:3001\n";
+    const merged = mergeEnvFile(existing, { INDEX_API_URL: "http://localhost:3001" }, "note");
+
+    expect(merged).to.contain("PINATA_JWT=eyJ.secret.value");
+    expect(merged).to.contain("INDEX_API_URL=http://localhost:3001");
+    expect(merged).to.not.contain("http://old:3001");
+  });
+
+  it("updates in place and preserves comments and blank lines", function () {
+    const existing = "# my settings\nA=1\n\nB=2\n";
+    expect(mergeEnvFile(existing, { A: "9" }, "note")).to.equal("# my settings\nA=9\n\nB=2\n");
+  });
+
+  it("appends new keys under a note saying where they came from", function () {
+    const merged = mergeEnvFile("A=1\n", { B: "2" }, "Public values only.");
+    expect(merged).to.equal("A=1\n\n# Written by `yarn passport:bootstrap`. Public values only.\nB=2\n");
+  });
+
+  it("writes a fresh file when there was none", function () {
+    expect(mergeEnvFile("", { A: "1" }, "note")).to.equal("# Written by `yarn passport:bootstrap`. note\nA=1\n");
+  });
+
+  it("recognises exported and spaced assignments as the same key", function () {
+    const merged = mergeEnvFile("export A = 1\n", { A: "2" }, "note");
+    expect(merged).to.equal("A=2\n");
+  });
+
+  it("is stable when run twice", function () {
+    const once = mergeEnvFile("X=1\n", { A: "1", B: "2" }, "note");
+    expect(mergeEnvFile(once, { A: "1", B: "2" }, "note")).to.equal(once);
   });
 });
