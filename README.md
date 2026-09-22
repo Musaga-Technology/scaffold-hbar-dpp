@@ -48,6 +48,11 @@ signed off. The page says so, in red, instead of showing a green tick.
 That contrast is the entire point of the template. Everything below is how to do
 it with real products.
 
+![A passport that fails its checks: the custody claim flagged in red with the reason, and a document whose content no longer matches the hash committed on HCS](docs/screenshots/verify-discrepancy.png)
+
+Every claim carries a link to HashScan, so nothing above has to be taken on this
+page's word. [See the whole passport](docs/screenshots/verify-discrepancy-full.png).
+
 ## Put a real passport on Hedera — 5 commands
 
 You need **Node ≥ 20.18.3** and a funded **ECDSA** Hedera account. The portal
@@ -75,6 +80,8 @@ wrong, `yarn passport:status` checks every entity against the mirror node.
 The bootstrap is setup. **The issuer page is the actual tool.**
 
 Open **http://localhost:3000/issuer** and connect a wallet.
+
+![The issuer page, showing the three steps: register it here, record what happens, hand it over](docs/screenshots/issuer.png)
 
 | Step | Where | What happens |
 | --- | --- | --- |
@@ -109,7 +116,9 @@ rather than quietly picking one.
 
 It does the same for documents: fetches each one back, re-hashes it, and
 compares against the digest committed on HCS. That is what `/verify/2`
-demonstrates.
+demonstrates — the attested hash and the one actually found, side by side.
+
+![The documents panel: a replaced certificate showing its CID, the sha256 attested on HCS, and the different hash actually found](docs/screenshots/documents.png)
 
 Reads never touch HCS directly — they come from the index, which is rebuildable
 from the mirror node at any time. `yarn indexer:verify` proves it by replaying
@@ -168,7 +177,8 @@ docker compose up
 
 App, indexer and Postgres on any container host — laptop, VM, on-prem, any
 cloud. Nothing here is tied to a vendor. Fly, Railway, Render and ECS all take
-the same containers.
+the same containers; [`fly.toml`](fly.toml) is a worked example for the indexer,
+health check and volume included.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 
@@ -224,6 +234,7 @@ keystore rather than a raw key. A fresh clone has no `.env` and validates clean.
 ## Links
 
 - [Design notes](docs/design-notes.md) — why it is built this way
+- [Fresh-machine check](docs/fresh-machine-check.md) — what a clean scaffold actually produces, with real timings
 - [Configuration](docs/configuration.md) — every environment variable
 - [AGENTS.md](AGENTS.md) — briefing for coding agents
 - [Hedera docs](https://docs.hedera.com) · [HashScan testnet](https://hashscan.io/testnet) · [Portal faucet](https://portal.hedera.com/faucet)

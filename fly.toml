@@ -1,0 +1,53 @@
+# Fly.io deployment for the indexer.
+#
+# The indexer is the half of this template a serverless platform cannot run: a
+# long-lived poller with a database. It is a plain container, so this file is
+# short and nothing in it is Fly-specific beyond the schema — Railway, Render and
+# ECS take the same image.
+#
+#   fly launch --no-deploy        # once, to create the app
+#   fly volumes create passport_data --size 1
+#   fly secrets set PASSPORT_REGISTRY_ADDRESS=0x… INDEXER_TOPIC_IDS=0.0.…
+#   fly deploy
+#
+# The indexer never needs an operator key. It only reads.
+
+app = "product-passport-indexer"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "packages/indexer/Dockerfile"
+
+[env]
+  HEDERA_NETWORK = "testnet"
+  INDEXER_PORT = "3001"
+  # Public gateways by default. Point these at your own for better latency and
+  # to avoid rate limits when verifying many documents.
+  IPFS_GATEWAY_URL = "https://ipfs.io"
+  ARWEAVE_GATEWAY_URL = "https://arweave.net"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  # The index is rebuildable from the mirror node, so stopping when idle costs
+  # nothing but a replay on the next request.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "20s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+# SQLite on a volume is enough for a single indexer. Attach Postgres and set
+# DATABASE_URL instead when more than one process needs to read the index.
+[[mounts]]
+  source = "passport_data"
+  destination = "/repo/packages/indexer/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
