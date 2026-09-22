@@ -8,7 +8,27 @@ every claim against Hedera yourself.
 npm create scaffold-hbar@latest my-passports -- --template Musaga-Technology/scaffold-hbar-dpp
 ```
 
-A scaffold-hbar template. Next.js + Hardhat + a mirror-node indexer.
+A scaffold-hbar template. Next.js + Hardhat + a mirror-node indexer + IPFS or
+Arweave for the documents.
+
+**What makes this more than a database with a blockchain attached:**
+
+- **Certificates are content-addressed, and re-checked.** A conformity
+  declaration or test report lives on IPFS or Arweave, and the passport stores
+  its content address plus a hash. The indexer fetches each one back, re-hashes
+  it, and compares. A document swapped after it was signed off shows up as
+  **replaced** — not a broken link, not a green tick.
+- **Custody is reconciled, not asserted.** The event log says what someone
+  *claimed* happened. The token's transfer history says what the network
+  actually recorded. Where they disagree the passport shows a **discrepancy**
+  instead of quietly picking one.
+- **Nothing here asks for trust.** Every claim links to HashScan, and
+  `yarn indexer:verify` rebuilds the whole index from the ledger to prove it
+  matches.
+
+Remove the storage layer and a passport's documents become URLs that may or may
+not still be what was attested — which for a regulated product is most of the
+record. That is why it is part of the template rather than an add-on.
 
 ---
 
@@ -138,6 +158,7 @@ template, `docker compose up` needs Docker alone.
 | `yarn indexer:verify` | Replay into a temp index and diff it against the live one |
 | `yarn next:start` | Run the app |
 | `yarn lint` · `yarn next:build` · `yarn hardhat:test` · `yarn indexer:test` | The gates CI runs |
+| `yarn hardhat:test:forking` | Optional — runs the contract against the real HTS precompile on a fork |
 
 ## Deploy it
 

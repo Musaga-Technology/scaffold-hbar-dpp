@@ -25,6 +25,7 @@ These are not style preferences. Breaking one breaks the template's premise.
 | `packages/hardhat/contracts/PassportRegistry.sol` | Registry: mint, custody, airdrop, allow-lists |
 | `packages/hardhat/contracts/interfaces/IHederaTokenService.sol` | HTS system contract interface — extend, don't rewrite |
 | `packages/hardhat/contracts/test/MockHTS.sol` | Local HTS double with an ERC-721 facade per collection |
+| `packages/hardhat/test/PassportRegistry.forking.test.ts` | Opt-in checks against the real precompile; also pins where the forking plugin stops short |
 | `packages/hardhat/scripts/bootstrap.ts` | Zero-to-testnet; idempotent, records `passport.state.json` |
 | `packages/hardhat/scripts/status.ts` | Checks every entity against the mirror node; needs no key |
 | `packages/hardhat/scripts/lib/events.ts` | Canonicalisation, sha256, event construction |
@@ -51,7 +52,7 @@ yarn next:check-types
 yarn next:build
 yarn hardhat:compile
 yarn hardhat:test              # MockHTS unit tests, no network
-yarn hardhat:test:forking      # optional, against a Hedera fork
+yarn hardhat:test:forking      # optional, against the real 0x167 on a fork
 yarn indexer:test
 yarn passport:bootstrap        # deploy + collection + topic + demo product
 yarn passport:status           # diagnostics, no key needed
