@@ -21,9 +21,10 @@ primary_region = "lhr"
 [env]
   HEDERA_NETWORK = "testnet"
   INDEXER_PORT = "3001"
-  # Public gateways by default. Point these at your own for better latency and
-  # to avoid rate limits when verifying many documents.
-  IPFS_GATEWAY_URL = "https://ipfs.io"
+  # Public gateways by default. None is trusted — IPFS documents are checked
+  # block by block against their CIDs — so point these at your own for latency
+  # and rate limits, not for safety.
+  IPFS_GATEWAY_URL = "https://trustless-gateway.link,https://gateway.pinata.cloud"
   ARWEAVE_GATEWAY_URL = "https://arweave.net"
 
 [http_service]

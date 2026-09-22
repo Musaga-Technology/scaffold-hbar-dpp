@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./events": "./src/events/index.ts",
     "./events/canonicalize": "./src/events/canonicalize.ts",
-    "./events/metadata": "./src/events/metadata.ts"
+    "./events/metadata": "./src/events/metadata.ts",
+    "./content/ipfs": "./src/content/ipfs.ts"
   },
   "bin": {
     "passport-indexer": "./dist/index.js"
@@ -43,9 +44,13 @@
     "vitest": "~3.0.5"
   },
   "dependencies": {
+    "@ipld/car": "^5.4.7",
     "better-sqlite3": "^13.0.3",
     "dotenv": "^18.0.2",
     "drizzle-orm": "^0.45.2",
+    "ipfs-unixfs-exporter": "^16.2.3",
+    "ipfs-unixfs-importer": "^17.1.1",
+    "multiformats": "^14.0.5",
     "pg": "^8.23.0"
   }
 }

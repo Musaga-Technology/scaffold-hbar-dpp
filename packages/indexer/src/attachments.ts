@@ -3,20 +3,24 @@
  *
  * Pinning a document to IPFS is easy and almost nobody checks it afterwards.
  * This is the part that makes the storage integration worth anything: for every
- * document a passport references, fetch it back, hash what actually arrives, and
- * compare against the hash the event committed to.
+ * document a passport references, fetch it back — from gateways that are not
+ * trusted — check it against its CID, and compare its sha256 against the hash
+ * the event committed to.
  *
  * Four outcomes, and the distinction between the last two matters:
  *
- *   verified     the bytes hash to what the event declared
- *   mismatch     something is at that address, but not what was attested
- *   unreachable  nothing answered — the reference may be sound but is unusable
+ *   verified     the document the reference names hashes to what was attested
+ *   mismatch     the reference names a document, but not the one attested
+ *   unreachable  no verifiable copy could be read — proves nothing either way
  *   pending      not checked yet
  *
- * `mismatch` is the serious one: it means a certificate was swapped after the
- * fact. `unreachable` is a weaker finding, and often temporary — a gateway
- * hiccup is not evidence of fraud, and calling it one would be its own kind of
- * dishonesty. They are reported separately for that reason.
+ * `mismatch` is the serious one. Content behind a CID cannot change, so it does
+ * not mean a certificate was swapped later — it means the issuer committed a
+ * sha256 of one document and a CID of another. An attestation that contradicts
+ * itself is precisely what a verifier exists to catch. `unreachable` is weaker
+ * and often temporary: a gateway failing, or serving altered blocks, is not
+ * evidence against the passport, and calling it one would be its own kind of
+ * dishonesty.
  *
  * `unreachable` is also what pin rot looks like. IPFS content persists only
  * while somebody keeps paying to pin it, so a passport whose manufacturer
@@ -32,8 +36,14 @@
 import { createHash } from "node:crypto";
 
 import {
+  CAR_MEDIA_TYPE,
+  CarVerificationError,
+  DEFAULT_IPFS_VERIFY_GATEWAYS,
+  carUrl,
+  readVerifiedCar,
+} from "./content/ipfs.js";
+import {
   DEFAULT_ARWEAVE_GATEWAY,
-  DEFAULT_IPFS_GATEWAY,
   gatewayUrl,
   readAttachments,
   type AttachmentProtocol,
@@ -44,13 +54,16 @@ import type { AttachmentVerdict, IndexStore } from "./store/index.js";
 /** Largest document the indexer will pull down while verifying. */
 export const MAX_VERIFY_BYTES = 25 * 1024 * 1024;
 
+/** Framing a CAR adds on top of the document it carries, allowed before refusing one. */
+const CAR_OVERHEAD_BYTES = 1024 * 1024;
+
 /** How long a single fetch may take before it is treated as unreachable. */
 export const FETCH_TIMEOUT_MS = 20_000;
 
 /** Minimal fetch surface, so tests can supply one that never touches a network. */
 export type FetchLike = (
   url: string,
-  init?: { signal?: AbortSignal },
+  init?: { signal?: AbortSignal; headers?: Record<string, string> },
 ) => Promise<{
   ok: boolean;
   status: number;
@@ -98,15 +111,188 @@ export async function recordAttachments(
 
 /** Gateways to read each network's content back through. */
 export interface Gateways {
-  ipfs: string;
+  /** Tried in order until one serves a CAR that checks out against the CID. */
+  ipfs: readonly string[];
   arweave: string;
 }
 
 /** Gateway defaults, used when nothing is configured. */
 export const DEFAULT_GATEWAYS: Gateways = {
-  ipfs: DEFAULT_IPFS_GATEWAY,
+  ipfs: DEFAULT_IPFS_VERIFY_GATEWAYS,
   arweave: DEFAULT_ARWEAVE_GATEWAY,
 };
+
+type Verdict = Omit<AttachmentVerdict, "topicId" | "sequenceNumber" | "cid">;
+
+/** Hostname of a gateway, for notes a person will read. */
+function host(gateway: string): string {
+  try {
+    return new URL(gateway).host;
+  } catch {
+    return gateway;
+  }
+}
+
+/**
+ * Fetches a URL with a timeout, never throwing.
+ *
+ * @returns The body, or a reason it could not be read.
+ */
+async function fetchBytes(
+  url: string,
+  fetchImpl: FetchLike,
+  headers?: Record<string, string>,
+): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; reason: string }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetchImpl(url, { signal: controller.signal, ...(headers ? { headers } : {}) });
+    if (!response.ok) return { ok: false, reason: `returned ${response.status} ${response.statusText}` };
+    return { ok: true, bytes: new Uint8Array(await response.arrayBuffer()) };
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Judges bytes that are known to be what the reference names. */
+function judge(bytes: Uint8Array, declaredHash: string, verifiedBy: string): Verdict {
+  const observedHash = createHash("sha256").update(bytes).digest("hex");
+
+  if (observedHash === declaredHash) {
+    return { state: "verified", observedHash, bytes: bytes.byteLength, note: verifiedBy };
+  }
+
+  return {
+    state: "mismatch",
+    observedHash,
+    bytes: bytes.byteLength,
+    note:
+      `The document this reference names is not the one whose hash was committed on HCS. ` +
+      `Declared ${declaredHash.slice(0, 16)}…, found ${observedHash.slice(0, 16)}…. ` +
+      `The issuer attested to different content than the document they pointed at.`,
+  };
+}
+
+/**
+ * Verifies an IPFS document against its CID, through untrusted gateways.
+ *
+ * Each gateway is asked for a CAR, and every block is checked against its own
+ * hash before the document is rebuilt. That changes what the verdicts mean:
+ *
+ *   - Once a document is rebuilt, the bytes are exactly what the CID names. No
+ *     gateway could have substituted them. So a `mismatch` is never a gateway's
+ *     fault — it can only mean the issuer committed a sha256 of different content
+ *     than the CID they committed alongside it.
+ *   - A gateway that serves altered blocks is caught, skipped, and named in the
+ *     note. It never produces a verdict against the passport.
+ *
+ * Content behind a CID cannot change, so "the certificate was replaced later" is
+ * not something IPFS allows. What this catches is the thing that can happen: an
+ * attestation that does not match its own reference.
+ */
+async function verifyIpfs(
+  cid: string,
+  declaredHash: string,
+  gateways: readonly string[],
+  fetchImpl: FetchLike,
+): Promise<Verdict> {
+  const failures: string[] = [];
+
+  for (const gateway of gateways) {
+    const fetched = await fetchBytes(carUrl(cid, gateway), fetchImpl, { accept: CAR_MEDIA_TYPE });
+    if (!fetched.ok) {
+      failures.push(`${host(gateway)} ${fetched.reason}`);
+      continue;
+    }
+
+    // A CAR carries some framing on top of the document, hence the slack.
+    if (fetched.bytes.byteLength > MAX_VERIFY_BYTES + CAR_OVERHEAD_BYTES) {
+      failures.push(`${host(gateway)} served ${fetched.bytes.byteLength} bytes, over the verification limit`);
+      continue;
+    }
+
+    let document: Uint8Array;
+    try {
+      document = await readVerifiedCar(fetched.bytes, cid);
+    } catch (error) {
+      if (
+        error instanceof CarVerificationError &&
+        (error.reason === "unsupported-hash" || error.reason === "not-a-file")
+      ) {
+        // A property of the CID itself, so no other gateway would do better.
+        return { state: "unreachable", note: `${error.message} It cannot be verified as a passport document.` };
+      }
+      failures.push(`${host(gateway)}: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+
+    if (document.byteLength > MAX_VERIFY_BYTES) {
+      return {
+        state: "unreachable",
+        bytes: document.byteLength,
+        note: `Document is ${document.byteLength} bytes, over the ${MAX_VERIFY_BYTES}-byte verification limit. Not checked.`,
+      };
+    }
+
+    return judge(
+      document,
+      declaredHash,
+      `Rebuilt from blocks each checked against the CID, served by ${host(gateway)}. No gateway was trusted.`,
+    );
+  }
+
+  return {
+    state: "unreachable",
+    note:
+      `No gateway returned a copy that could be checked against its CID (${failures.join("; ") || "none configured"}). ` +
+      `This is not evidence the content is wrong, only that it could not be read.`,
+  };
+}
+
+/**
+ * Verifies an Arweave document by hash.
+ *
+ * Weaker than the IPFS path, and the note says so: an Arweave transaction id is
+ * not a hash of the data, so nothing here checks that the gateway returned the
+ * data belonging to that id. The sha256 committed on HCS still binds the
+ * content, so a substituted document shows as a mismatch — but on this path a
+ * mismatch could also be a dishonest gateway, and the note does not pretend
+ * otherwise.
+ */
+async function verifyArweave(
+  txId: string,
+  declaredHash: string,
+  gateway: string,
+  fetchImpl: FetchLike,
+): Promise<Verdict> {
+  const fetched = await fetchBytes(gatewayUrl(txId, gateway, "arweave"), fetchImpl);
+  if (!fetched.ok) {
+    return {
+      state: "unreachable",
+      note: `Could not fetch the document: ${host(gateway)} ${fetched.reason}. This is not evidence the content is wrong, only that it could not be read.`,
+    };
+  }
+
+  if (fetched.bytes.byteLength > MAX_VERIFY_BYTES) {
+    return {
+      state: "unreachable",
+      bytes: fetched.bytes.byteLength,
+      note: `Document is ${fetched.bytes.byteLength} bytes, over the ${MAX_VERIFY_BYTES}-byte verification limit. Not checked.`,
+    };
+  }
+
+  const verdict = judge(
+    fetched.bytes,
+    declaredHash,
+    `Hash matched the bytes served by ${host(gateway)}, which is trusted to return this transaction's data — an Arweave id is not a content hash.`,
+  );
+  if (verdict.state === "mismatch") {
+    verdict.note += ` Arweave ids are not content hashes, so ${host(gateway)} returning the wrong data would look the same.`;
+  }
+  return verdict;
+}
 
 /**
  * Fetches one attachment and judges it.
@@ -115,7 +301,7 @@ export const DEFAULT_GATEWAYS: Gateways = {
  * leave every later attachment unchecked.
  *
  * @param attachment The reference to check.
- * @param gateway IPFS gateway base URL.
+ * @param gateways Gateways per network.
  * @param fetchImpl Injected for tests.
  * @returns The verdict, without the identifying keys.
  */
@@ -123,59 +309,17 @@ export async function verifyAttachment(
   attachment: { cid: string; declaredHash: string; protocol?: AttachmentProtocol },
   gateways: Gateways = DEFAULT_GATEWAYS,
   fetchImpl: FetchLike = fetch as unknown as FetchLike,
-): Promise<Omit<AttachmentVerdict, "topicId" | "sequenceNumber" | "cid">> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  const protocol = attachment.protocol ?? "ipfs";
-  const gateway = protocol === "arweave" ? gateways.arweave : gateways.ipfs;
-
+): Promise<Verdict> {
   try {
-    // Verification is identical whichever network the document lives on: fetch
-    // it back and compare the hash. Only the URL shape differs.
-    const response = await fetchImpl(gatewayUrl(attachment.cid, gateway, protocol), {
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      return {
-        state: "unreachable",
-        note: `Gateway returned ${response.status} ${response.statusText}. The content may still exist; it could not be read here.`,
-      };
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-
-    if (buffer.byteLength > MAX_VERIFY_BYTES) {
-      return {
-        state: "unreachable",
-        bytes: buffer.byteLength,
-        note: `Document is ${buffer.byteLength} bytes, over the ${MAX_VERIFY_BYTES}-byte verification limit. Not checked.`,
-      };
-    }
-
-    const observedHash = createHash("sha256").update(buffer).digest("hex");
-
-    if (observedHash === attachment.declaredHash) {
-      return { state: "verified", observedHash, bytes: buffer.byteLength };
-    }
-
-    return {
-      state: "mismatch",
-      observedHash,
-      bytes: buffer.byteLength,
-      note:
-        `The document at this address does not match the hash committed on HCS. ` +
-        `Declared ${attachment.declaredHash.slice(0, 16)}…, found ${observedHash.slice(0, 16)}…. ` +
-        `It has been replaced since it was attested.`,
-    };
+    return attachment.protocol === "arweave"
+      ? await verifyArweave(attachment.cid, attachment.declaredHash, gateways.arweave, fetchImpl)
+      : await verifyIpfs(attachment.cid, attachment.declaredHash, gateways.ipfs, fetchImpl);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return {
       state: "unreachable",
-      note: `Could not fetch the document: ${reason}. This is not evidence the content is wrong, only that it could not be read.`,
+      note: `Could not verify the document: ${reason}. This is not evidence the content is wrong, only that it could not be read.`,
     };
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -189,7 +333,7 @@ export async function verifyAttachment(
  * are the two that a working gateway can resolve.
  *
  * @param store Index to read and update.
- * @param gateway IPFS gateway base URL.
+ * @param gateways Gateways per network.
  * @param fetchImpl Injected for tests.
  * @returns Counts by outcome.
  */

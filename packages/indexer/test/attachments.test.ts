@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_GATEWAYS,
   MAX_VERIFY_BYTES,
   recordAttachments,
   verifyAttachment,
@@ -18,45 +19,52 @@ import {
   isSha256Hex,
   readAttachments,
 } from "../src/events/index.js";
+import { buildCar } from "../src/content/ipfs.js";
 import { createMemoryStore } from "../src/store/index.js";
 import type { IndexStore } from "../src/store/index.js";
 
-const GATEWAY = { ipfs: "https://ipfs.example", arweave: "https://ar.example" };
+const GATEWAY = { ipfs: ["https://ipfs.example"], arweave: "https://ar.example" };
 const CID_V0 = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG";
 const CID_V1 = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+const bytesOf = (text: string) => new TextEncoder().encode(text);
 
-/** A gateway that serves a fixed body for each CID. */
-function gatewayServing(bodies: Record<string, string | number>): FetchLike {
+/** A document as it would be pinned: its real CID, its CAR, and its sha256. */
+async function pinned(text: string): Promise<{ cid: string; car: Uint8Array; hash: string }> {
+  const { cid, car } = await buildCar(bytesOf(text));
+  return { cid, car, hash: sha256(text) };
+}
+
+type Served = Uint8Array | number;
+
+function reply(body: Served | undefined) {
+  if (body === undefined) {
+    return { ok: false, status: 404, statusText: "Not Found", arrayBuffer: async () => new ArrayBuffer(0) };
+  }
+  // A number is a size, for exercising the ceiling without allocating real content.
+  const buffer = typeof body === "number" ? new ArrayBuffer(body) : (body.slice().buffer as ArrayBuffer);
+  return { ok: true, status: 200, statusText: "OK", arrayBuffer: async () => buffer };
+}
+
+/** A trustless gateway that serves a fixed CAR for each CID. */
+function gatewayServing(cars: Record<string, Served>): FetchLike {
+  return async (url: string) => reply(cars[url.split("/ipfs/")[1]?.split("?")[0] ?? ""]);
+}
+
+/** Several gateways at once, keyed by host, for fallback tests. */
+function gatewaysServing(byHost: Record<string, Record<string, Served>>): FetchLike {
   return async (url: string) => {
-    const cid = url.split("/ipfs/")[1] ?? "";
-    const body = bodies[cid];
-
-    if (body === undefined) {
-      return {
-        ok: false,
-        status: 404,
-        statusText: "Not Found",
-        arrayBuffer: async () => new ArrayBuffer(0),
-      };
-    }
-    if (typeof body === "number") {
-      // A size, for exercising the verification ceiling without allocating real content.
-      return {
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        arrayBuffer: async () => new ArrayBuffer(body),
-      };
-    }
-    return {
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      arrayBuffer: async () => new TextEncoder().encode(body).buffer as ArrayBuffer,
-    };
+    const parsed = new URL(url);
+    return reply(byHost[parsed.host]?.[parsed.pathname.replace("/ipfs/", "")]);
   };
+}
+
+/** Flips one byte of a CAR's payload, the way a dishonest gateway would. */
+function tamper(car: Uint8Array): Uint8Array {
+  const copy = car.slice();
+  copy[copy.length - 3]! ^= 0xff;
+  return copy;
 }
 
 describe("attachment references", () => {
@@ -107,29 +115,126 @@ describe("attachment references", () => {
 });
 
 describe("verifyAttachment", () => {
-  it("verifies a document whose bytes match the committed hash", async () => {
-    const body = "conformity certificate";
+  it("verifies a document rebuilt from blocks checked against its CID", async () => {
+    const doc = await pinned("conformity certificate");
     const result = await verifyAttachment(
-      { cid: CID_V1, declaredHash: sha256(body) },
+      { cid: doc.cid, declaredHash: doc.hash },
       GATEWAY,
-      gatewayServing({ [CID_V1]: body }),
+      gatewayServing({ [doc.cid]: doc.car }),
     );
 
     expect(result.state).toBe("verified");
-    expect(result.observedHash).toBe(sha256(body));
-    expect(result.bytes).toBe(body.length);
+    expect(result.observedHash).toBe(doc.hash);
+    expect(result.bytes).toBe("conformity certificate".length);
+    expect(result.note).toContain("checked against the CID");
+    expect(result.note).toContain("ipfs.example");
   });
 
-  it("flags a document that was swapped after it was attested", async () => {
+  it("asks the gateway for a CAR of exactly the document, not for the file", async () => {
+    const doc = await pinned("report");
+    const seen: { url: string; accept?: string }[] = [];
+
+    await verifyAttachment({ cid: doc.cid, declaredHash: doc.hash }, GATEWAY, async (url, init) => {
+      seen.push({ url, accept: init?.headers?.accept });
+      return reply(doc.car);
+    });
+
+    expect(seen).toEqual([
+      {
+        url: `https://ipfs.example/ipfs/${doc.cid}?format=car&dag-scope=entity`,
+        accept: "application/vnd.ipld.car",
+      },
+    ]);
+  });
+
+  it("verifies a document spanning many blocks", async () => {
+    // Over the 1 MiB chunk size, so the CID is a DAG root rather than a hash of
+    // the file — the case where the CID and the sha256 genuinely differ.
+    const text = "battery test report ".repeat(120_000);
+    const doc = await pinned(text);
+    expect(doc.cid.startsWith("bafy")).toBe(true);
+
     const result = await verifyAttachment(
-      { cid: CID_V1, declaredHash: sha256("the real certificate") },
+      { cid: doc.cid, declaredHash: doc.hash },
       GATEWAY,
-      gatewayServing({ [CID_V1]: "a different document entirely" }),
+      gatewayServing({ [doc.cid]: doc.car }),
+    );
+
+    expect(result.state).toBe("verified");
+    expect(result.bytes).toBe(text.length);
+  });
+
+  it("flags an attestation whose hash does not match the document its CID names", async () => {
+    // The issuer committed the CID of one document and the sha256 of another.
+    // Content behind a CID cannot change, so this is the real failure mode.
+    const pointedAt = await pinned("a different document entirely");
+    const result = await verifyAttachment(
+      { cid: pointedAt.cid, declaredHash: sha256("the real certificate") },
+      GATEWAY,
+      gatewayServing({ [pointedAt.cid]: pointedAt.car }),
     );
 
     expect(result.state).toBe("mismatch");
-    expect(result.note).toContain("does not match the hash committed on HCS");
-    expect(result.observedHash).toBe(sha256("a different document entirely"));
+    expect(result.note).toContain("not the one whose hash was committed on HCS");
+    expect(result.note).not.toMatch(/replaced|swapped/);
+    expect(result.observedHash).toBe(pointedAt.hash);
+  });
+
+  it("catches a gateway that serves altered content, and does not blame the passport", async () => {
+    const doc = await pinned("inspection record");
+    const result = await verifyAttachment(
+      { cid: doc.cid, declaredHash: doc.hash },
+      GATEWAY,
+      gatewayServing({ [doc.cid]: tamper(doc.car) }),
+    );
+
+    // A lying gateway is caught at the block level. It cannot manufacture a
+    // mismatch, because nothing it serves is used until it checks out.
+    expect(result.state).toBe("unreachable");
+    expect(result.note).toContain("does not hash to its own CID");
+    expect(result.note).toContain("not evidence the content is wrong");
+  });
+
+  it("falls back to the next gateway when one lies", async () => {
+    const doc = await pinned("declaration of conformity");
+    const result = await verifyAttachment(
+      { cid: doc.cid, declaredHash: doc.hash },
+      { ipfs: ["https://liar.example", "https://honest.example"], arweave: GATEWAY.arweave },
+      gatewaysServing({
+        "liar.example": { [doc.cid]: tamper(doc.car) },
+        "honest.example": { [doc.cid]: doc.car },
+      }),
+    );
+
+    expect(result.state).toBe("verified");
+    expect(result.note).toContain("honest.example");
+  });
+
+  it("rejects a CAR for some other CID, however valid its blocks", async () => {
+    const asked = await pinned("the certificate");
+    const other = await pinned("something else");
+    const result = await verifyAttachment(
+      { cid: asked.cid, declaredHash: asked.hash },
+      GATEWAY,
+      gatewayServing({ [asked.cid]: other.car }),
+    );
+
+    expect(result.state).toBe("unreachable");
+    expect(result.note).toContain(`does not contain ${asked.cid}`);
+  });
+
+  it("does not accept a plain file from a gateway that ignores the CAR request", async () => {
+    // A gateway that serves raw bytes has proved nothing about the CID. Hashing
+    // them anyway would bring back exactly the trust this design removes.
+    const doc = await pinned("plain bytes");
+    const result = await verifyAttachment(
+      { cid: doc.cid, declaredHash: doc.hash },
+      GATEWAY,
+      gatewayServing({ [doc.cid]: bytesOf("plain bytes") }),
+    );
+
+    expect(result.state).toBe("unreachable");
+    expect(result.note).toContain("not a readable CAR");
   });
 
   it("reports an absent document as unreachable, not as a mismatch", async () => {
@@ -151,20 +256,25 @@ describe("verifyAttachment", () => {
     expect(result.note).toContain("not evidence the content is wrong");
   });
 
-  it("refuses to hash a document over the verification ceiling", async () => {
+  it("refuses to read a response over the verification ceiling", async () => {
     const result = await verifyAttachment(
       { cid: CID_V1, declaredHash: sha256("x") },
       GATEWAY,
-      gatewayServing({ [CID_V1]: MAX_VERIFY_BYTES + 1 }),
+      gatewayServing({ [CID_V1]: MAX_VERIFY_BYTES * 2 }),
     );
 
     expect(result.state).toBe("unreachable");
     expect(result.note).toContain("verification limit");
   });
 
+  it("defaults to two independent trustless gateways", () => {
+    expect(DEFAULT_GATEWAYS.ipfs).toEqual(["https://trustless-gateway.link", "https://gateway.pinata.cloud"]);
+  });
+
   it("never throws, whatever the gateway does", async () => {
     for (const impl of [
       gatewayServing({}),
+      gatewayServing({ [CID_V1]: bytesOf("garbage") }),
       (async () => {
         throw new Error("boom");
       }) as unknown as FetchLike,
@@ -210,98 +320,105 @@ describe("verifyPendingAttachments", () => {
   });
 
   it("verifies pending references and records the observed hash", async () => {
-    const body = "test report";
-    await recordAttachments(store, "0.0.6666666666", 1, {
-      attachments: [{ cid: CID_V1, hash: sha256(body) }],
-    });
+    const doc = await pinned("test report");
+    await recordAttachments(store, "0.0.6666666666", 1, { attachments: [{ cid: doc.cid, hash: doc.hash }] });
 
-    const counts = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: body }));
+    const counts = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [doc.cid]: doc.car }));
 
     expect(counts).toEqual({ checked: 1, verified: 1, mismatch: 0, unreachable: 0 });
     const stored = await store.listAttachments(1);
     expect(stored[0]!.state).toBe("verified");
-    expect(stored[0]!.observedHash).toBe(sha256(body));
+    expect(stored[0]!.observedHash).toBe(doc.hash);
     expect(stored[0]!.checkedAt).toBeTruthy();
   });
 
   it("does not re-fetch a document it has already verified", async () => {
-    const body = "stable";
-    await recordAttachments(store, "0.0.6666666666", 1, {
-      attachments: [{ cid: CID_V1, hash: sha256(body) }],
-    });
-    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: body }));
+    const doc = await pinned("stable");
+    await recordAttachments(store, "0.0.6666666666", 1, { attachments: [{ cid: doc.cid, hash: doc.hash }] });
+    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [doc.cid]: doc.car }));
 
     // Content addressing means the bytes behind a CID cannot change, so a
     // second pass has nothing to do.
-    const second = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: body }));
+    const second = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [doc.cid]: doc.car }));
     expect(second.checked).toBe(0);
   });
 
   it("retries an unreachable document on the next pass", async () => {
-    await recordAttachments(store, "0.0.6666666666", 1, {
-      attachments: [{ cid: CID_V1, hash: sha256("late") }],
-    });
+    const doc = await pinned("late");
+    await recordAttachments(store, "0.0.6666666666", 1, { attachments: [{ cid: doc.cid, hash: doc.hash }] });
 
     const first = await verifyPendingAttachments(store, GATEWAY, gatewayServing({}));
     expect(first.unreachable).toBe(1);
 
     // A gateway that was down is not a permanent verdict.
-    const second = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: "late" }));
+    const second = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [doc.cid]: doc.car }));
     expect(second.verified).toBe(1);
     expect((await store.listAttachments(1))[0]!.state).toBe("verified");
   });
 
-  it("keeps a mismatch as a permanent finding", async () => {
-    await recordAttachments(store, "0.0.6666666666", 1, {
-      attachments: [{ cid: CID_V1, hash: sha256("original") }],
-    });
-    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: "swapped" }));
+  it("retries after a gateway served altered blocks", async () => {
+    const doc = await pinned("contested");
+    await recordAttachments(store, "0.0.6666666666", 1, { attachments: [{ cid: doc.cid, hash: doc.hash }] });
 
-    const again = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: "swapped" }));
+    const first = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [doc.cid]: tamper(doc.car) }));
+    expect(first.unreachable).toBe(1);
+
+    const second = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [doc.cid]: doc.car }));
+    expect(second.verified).toBe(1);
+  });
+
+  it("keeps a mismatch as a permanent finding", async () => {
+    const pointedAt = await pinned("not what was attested");
+    await recordAttachments(store, "0.0.6666666666", 1, {
+      attachments: [{ cid: pointedAt.cid, hash: sha256("original") }],
+    });
+    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [pointedAt.cid]: pointedAt.car }));
+
+    const again = await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [pointedAt.cid]: pointedAt.car }));
     expect(again.checked).toBe(0);
     expect((await store.listAttachments(1))[0]!.state).toBe("mismatch");
   });
 
   it("re-polling a topic does not discard a verdict already reached", async () => {
-    const body = "certificate";
-    await recordAttachments(store, "0.0.6666666666", 1, {
-      attachments: [{ cid: CID_V1, hash: sha256(body) }],
-    });
-    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: body }));
+    const doc = await pinned("certificate");
+    await recordAttachments(store, "0.0.6666666666", 1, { attachments: [{ cid: doc.cid, hash: doc.hash }] });
+    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [doc.cid]: doc.car }));
 
     // The poller re-declares the same reference on a later pass.
-    await recordAttachments(store, "0.0.6666666666", 1, {
-      attachments: [{ cid: CID_V1, hash: sha256(body) }],
-    });
+    await recordAttachments(store, "0.0.6666666666", 1, { attachments: [{ cid: doc.cid, hash: doc.hash }] });
 
     expect((await store.listAttachments(1))[0]!.state).toBe("verified");
   });
 
   it("counts a mix of outcomes independently", async () => {
+    const good = await pinned("good");
+    const bad = await pinned("tampered");
     await recordAttachments(store, "0.0.6666666666", 1, {
       attachments: [
-        { cid: CID_V1, hash: sha256("good") },
-        { cid: CID_V0, hash: sha256("expected") },
+        { cid: good.cid, hash: good.hash },
+        { cid: bad.cid, hash: sha256("expected") },
       ],
     });
 
     const counts = await verifyPendingAttachments(
       store,
       GATEWAY,
-      gatewayServing({ [CID_V1]: "good", [CID_V0]: "tampered" }),
+      gatewayServing({ [good.cid]: good.car, [bad.cid]: bad.car }),
     );
 
     expect(counts).toEqual({ checked: 2, verified: 1, mismatch: 1, unreachable: 0 });
   });
 
   it("reports document counts in stats", async () => {
+    const good = await pinned("good");
+    const bad = await pinned("tampered");
     await recordAttachments(store, "0.0.6666666666", 1, {
       attachments: [
-        { cid: CID_V1, hash: sha256("good") },
-        { cid: CID_V0, hash: sha256("expected") },
+        { cid: good.cid, hash: good.hash },
+        { cid: bad.cid, hash: sha256("expected") },
       ],
     });
-    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [CID_V1]: "good", [CID_V0]: "tampered" }));
+    await verifyPendingAttachments(store, GATEWAY, gatewayServing({ [good.cid]: good.car, [bad.cid]: bad.car }));
 
     const stats = await store.stats();
     expect(stats.attachments).toBe(2);
@@ -374,7 +491,7 @@ describe("Arweave-hosted documents", () => {
     expect(result.state).toBe("verified");
   });
 
-  it("catches a swapped Arweave document exactly as it does an IPFS one", async () => {
+  it("flags an Arweave document that does not match its attestation, and says the gateway was trusted", async () => {
     const result = await verifyAttachment(
       { cid: AR_ID, declaredHash: sha256("attested"), protocol: "arweave" },
       GATEWAY,
@@ -387,6 +504,9 @@ describe("Arweave-hosted documents", () => {
     );
 
     expect(result.state).toBe("mismatch");
+    // Arweave ids are not content hashes, so this path cannot rule out a lying
+    // gateway — and the note must not claim more than it checked.
+    expect(result.note).toContain("not content hashes");
   });
 
   it("verifies a mixed passport, routing each document to its own network", async () => {
@@ -400,9 +520,10 @@ describe("Arweave-hosted documents", () => {
         type: "product.inspected",
         hashValid: true,
       });
+      const onIpfs = await pinned("on ipfs");
       await recordAttachments(store, "0.0.6666666666", 1, {
         attachments: [
-          { cid: CID_V1, hash: sha256("on ipfs") },
+          { cid: onIpfs.cid, hash: onIpfs.hash },
           { protocol: "arweave", cid: AR_ID, hash: sha256("on arweave") },
         ],
       });
@@ -410,17 +531,11 @@ describe("Arweave-hosted documents", () => {
       const seen: string[] = [];
       const counts = await verifyPendingAttachments(store, GATEWAY, async (url: string) => {
         seen.push(url);
-        const body = url.includes("/ipfs/") ? "on ipfs" : "on arweave";
-        return {
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          arrayBuffer: async () => new TextEncoder().encode(body).buffer as ArrayBuffer,
-        };
+        return reply(url.includes("/ipfs/") ? onIpfs.car : bytesOf("on arweave"));
       });
 
       expect(counts.verified).toBe(2);
-      expect(seen).toContain(`https://ipfs.example/ipfs/${CID_V1}`);
+      expect(seen).toContain(`https://ipfs.example/ipfs/${onIpfs.cid}?format=car&dag-scope=entity`);
       expect(seen).toContain(`https://ar.example/${AR_ID}`);
     } finally {
       await store.close();

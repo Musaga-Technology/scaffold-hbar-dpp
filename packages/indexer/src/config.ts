@@ -2,7 +2,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 
-import { DEFAULT_ARWEAVE_GATEWAY, DEFAULT_IPFS_GATEWAY } from "./events/index.js";
+import { DEFAULT_IPFS_VERIFY_GATEWAYS } from "./content/ipfs.js";
+import { DEFAULT_ARWEAVE_GATEWAY } from "./events/index.js";
 
 /**
  * Loads the workspace's env files before any config is read.
@@ -54,8 +55,12 @@ export interface IndexerConfig {
   databaseUrl?: string;
   /** Port for the read-only index API served by `dev`. */
   port: number;
-  /** Gateways used to read attachments back for verification, per network. */
-  gateways: { ipfs: string; arweave: string };
+  /**
+   * Gateways used to read attachments back for verification. IPFS takes a list,
+   * tried in order: every one is untrusted, so a second operator costs nothing
+   * and turns one gateway's outage into a fallback rather than `unreachable`.
+   */
+  gateways: { ipfs: string[]; arweave: string };
 }
 
 const DEFAULTS = {
@@ -104,7 +109,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndexerConfig 
     databaseUrl: env.DATABASE_URL || undefined,
     port: parsePositiveInt(env.INDEXER_PORT, DEFAULTS.port, "INDEXER_PORT"),
     gateways: {
-      ipfs: (env.IPFS_GATEWAY_URL ?? DEFAULT_IPFS_GATEWAY).replace(/\/+$/, ""),
+      ipfs: (parseList(env.IPFS_GATEWAY_URL).length > 0
+        ? parseList(env.IPFS_GATEWAY_URL)
+        : [...DEFAULT_IPFS_VERIFY_GATEWAYS]
+      ).map(url => url.replace(/\/+$/, "")),
       arweave: (env.ARWEAVE_GATEWAY_URL ?? DEFAULT_ARWEAVE_GATEWAY).replace(/\/+$/, ""),
     },
   };

@@ -40,7 +40,7 @@ services:
       INDEXER_TOPIC_IDS: ${INDEXER_TOPIC_IDS:-}
       PASSPORT_REGISTRY_ADDRESS: ${PASSPORT_REGISTRY_ADDRESS:-}
       INDEXER_PORT: "3001"
-      IPFS_GATEWAY_URL: ${IPFS_GATEWAY_URL:-https://ipfs.io}
+      IPFS_GATEWAY_URL: ${IPFS_GATEWAY_URL:-https://trustless-gateway.link,https://gateway.pinata.cloud}
       ARWEAVE_GATEWAY_URL: ${ARWEAVE_GATEWAY_URL:-https://arweave.net}
     ports:
       - "3001:3001"

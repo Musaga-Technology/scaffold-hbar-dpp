@@ -41,6 +41,14 @@ describe("loadConfig", () => {
     const config = loadConfig({ DATABASE_URL: "postgres://localhost/passport" });
     expect(config.databaseUrl).toBe("postgres://localhost/passport");
   });
+  it("verifies IPFS documents through two independent trustless gateways by default", () => {
+    expect(loadConfig({}).gateways.ipfs).toEqual(["https://trustless-gateway.link", "https://gateway.pinata.cloud"]);
+  });
+
+  it("takes a comma-separated gateway list and strips trailing slashes", () => {
+    const config = loadConfig({ IPFS_GATEWAY_URL: "https://mine.example/, https://backup.example" });
+    expect(config.gateways.ipfs).toEqual(["https://mine.example", "https://backup.example"]);
+  });
 });
 
 describe("hasIndexTarget", () => {

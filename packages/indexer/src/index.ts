@@ -36,7 +36,8 @@ Environment:
   INDEX_DB_PATH              SQLite file (default ./data/passport.db)
   DATABASE_URL               Use Postgres instead of SQLite
   INDEXER_PORT               Index API port for \`dev\` (default 3001)
-  IPFS_GATEWAY_URL           IPFS gateway for verifying documents (default ipfs.io)
+  IPFS_GATEWAY_URL           Trustless IPFS gateways, comma-separated, tried in order
+                             (default trustless-gateway.link,gateway.pinata.cloud)
   ARWEAVE_GATEWAY_URL        Arweave gateway for verifying documents (default arweave.net)
 
 Run \`yarn passport:bootstrap\` first — it writes packages/indexer/.env.local
@@ -61,7 +62,7 @@ export function describeConfig(config: IndexerConfig): string {
     `indexing:    ${target}`,
     `store:       ${store}`,
     `poll:        ${config.pollMs}ms`,
-    `documents:   ipfs ${config.gateways.ipfs}, arweave ${config.gateways.arweave}`,
+    `documents:   ipfs ${config.gateways.ipfs.join(", ")} (checked against CIDs), arweave ${config.gateways.arweave}`,
   ].join("\n");
 }
 
