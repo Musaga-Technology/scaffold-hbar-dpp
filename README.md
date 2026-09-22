@@ -34,9 +34,41 @@ the one hosting it. With a CID checked block by block, nobody has to be trusted
 — which, for a regulated product, is most of the record. That is why storage is
 part of the template rather than an add-on.
 
+## Two ways in
+
+| | What you need | What you get |
+| --- | --- | --- |
+| **Look at it** — 30 seconds | nothing | Bundled data, including a passport that **fails** its checks — the case a fresh registry cannot show you |
+| **Run it for real** — 5 commands | a funded [testnet account](https://portal.hedera.com) | Your own registry on Hedera: tokens, topics, documents on IPFS, all verifiable on HashScan |
+
+It is already running on testnet if you would rather see that first:
+[serial 2 and its lifecycle topic](#proof-it-runs-on-hedera-testnet).
+
+## What people use this for
+
+A Digital Product Passport is a regulatory requirement arriving product
+category by product category — batteries first, in the EU, from February 2027,
+then textiles, electronics and more under the ESPR. The shape is always the
+same: an item, a history, documents to back it up, and someone downstream who
+has to check them.
+
+| | What the passport carries | Who checks it |
+| --- | --- | --- |
+| **EV and industrial batteries** | chemistry, capacity, carbon footprint, state of health, recycled content | recyclers, regulators, second-life buyers |
+| **Textiles and footwear** | fibre composition, mill, dye process, repair history | customs, resale platforms, brands policing their own supply chain |
+| **Food and coffee** | origin lot, cold-chain events, organic and fair-trade certificates | importers, retailers, auditors |
+| **Pharmaceuticals** | batch, cold-chain excursions, chain of custody | pharmacies, inspectors |
+| **Machinery and spare parts** | serial, service log, conformity declarations | field engineers, insurers, buyers of used equipment |
+| **Luxury goods** | provenance, ownership handovers, authentication reports | resale market, customs |
+
+Battery, textile and a generic category ship with the template. **Adding one is
+a single JSON file** in `schemas/categories/` — no code — and it drives the
+registration form, the validation and how the passport renders. See
+[Extend it](#extend-it).
+
 ---
 
-## See it working — 30 seconds, no account
+## Look at it — 30 seconds, no account
 
 ```bash
 yarn install
@@ -55,10 +87,12 @@ it with real products.
 
 ![A passport that fails its checks: the custody claim flagged in red with the reason, and a document that does not match the hash committed on HCS](docs/screenshots/verify-discrepancy.png)
 
-Every claim carries a link to HashScan, so nothing above has to be taken on this
-page's word. [See the whole passport](docs/screenshots/verify-discrepancy-full.png).
+The demo's token and topic ids are deliberately unallocated, so its HashScan
+links do not resolve and the page says so. The
+[testnet passport below](#proof-it-runs-on-hedera-testnet) is the real thing,
+links and all. [See the whole demo passport](docs/screenshots/verify-discrepancy-full.png).
 
-## Put a real passport on Hedera — 5 commands
+## Run it for real — 5 commands
 
 You need **Node ≥ 20.18.3** and a funded **ECDSA** Hedera account. The portal
 offers ECDSA and ED25519; only ECDSA works here.
@@ -72,6 +106,12 @@ yarn indexer:dev                  # reads the mirror node, checks every claim
 yarn next:start                   # http://localhost:3000/verify/1
 ```
 
+Set `PINATA_JWT` in `packages/hardhat/.env` first (a free key from
+[pinata.cloud](https://pinata.cloud) is enough) and the bootstrap also pins the
+token metadata and a conformity declaration to IPFS, then attaches the
+declaration to the inspection event for the indexer to verify. Without it,
+everything else still runs.
+
 `passport:bootstrap` is idempotent — if it fails halfway, fix the cause and run
 it again. Finished steps are skipped, not paid for twice. If anything looks
 wrong, `yarn passport:status` checks every entity against the mirror node.
@@ -79,6 +119,35 @@ wrong, `yarn passport:status` checks every entity against the mirror node.
 > **It registers a product for you.** When the bootstrap finishes you already own
 > a live passport: serial 1, with a topic carrying its first three lifecycle
 > events. `/verify/1` is now that product, not the demo.
+
+## Proof it runs on Hedera testnet
+
+Serial 2 was bootstrapped on 22 September 2026 and exercises every part of the
+template, including a real document. Open any of these:
+
+| | |
+| --- | --- |
+| Registry contract | [`0xCBc3089c…5f22D5a7A`](https://hashscan.io/testnet/contract/0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A) |
+| Collection | [`0.0.10649382`](https://hashscan.io/testnet/token/0.0.10649382) |
+| Passport serial 2 | [`0.0.10649382/2`](https://hashscan.io/testnet/token/0.0.10649382/2) |
+| Lifecycle topic | [`0.0.10668028`](https://hashscan.io/testnet/topic/0.0.10668028) |
+| HIP-412 metadata, on the serial | [`ipfs://bafkreidu7j…vkylwi`](https://inbrowser.link/ipfs/bafkreidu7jb6w3eaddepjfptlng2skhjulk7abdpqftgwncw6eq5vkylwi) |
+| Declaration of conformity, attached to the inspection | [`ipfs://bafkreihtnn…nsa2e`](https://inbrowser.link/ipfs/bafkreihtnneuanum2wo7tikuj7wgmrw4owgnbruv7h5mh4diduxx5nsa2e) |
+
+Read the topic yourself, without trusting this page:
+
+```bash
+curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10668028/messages?order=asc" \
+  | jq -r '.messages[] | "\(.sequence_number) \(.message|@base64d)"'
+```
+
+The third message is the inspection. Its attachment commits the declaration's
+CID and its sha256, `f36b4940…6eb640d1`. The document is small enough to be a
+single raw block, so that sha256 is literally inside the CID — decode
+`bafkreihtnn…` and you get the same 32 bytes. The indexer fetches the
+declaration back as a CAR from a public gateway it does not trust, checks it
+against the CID, and reports it verified. The links above open through
+`inbrowser.link`, which does the same check in your browser.
 
 ## Register your own products
 
@@ -143,35 +212,6 @@ from the mirror node at any time. `yarn indexer:verify` proves it by replaying
 from scratch and diffing.
 
 Why it is built this way: [docs/design-notes.md](docs/design-notes.md).
-
-## Proof it runs on Hedera testnet
-
-Serial 2 was bootstrapped on 22 September 2026 and exercises every part of the
-template, including a real document. Open any of these:
-
-| | |
-| --- | --- |
-| Registry contract | [`0xCBc3089c…5f22D5a7A`](https://hashscan.io/testnet/contract/0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A) |
-| Collection | [`0.0.10649382`](https://hashscan.io/testnet/token/0.0.10649382) |
-| Passport serial 2 | [`0.0.10649382/2`](https://hashscan.io/testnet/token/0.0.10649382/2) |
-| Lifecycle topic | [`0.0.10668028`](https://hashscan.io/testnet/topic/0.0.10668028) |
-| HIP-412 metadata, on the serial | [`ipfs://bafkreidu7j…vkylwi`](https://inbrowser.link/ipfs/bafkreidu7jb6w3eaddepjfptlng2skhjulk7abdpqftgwncw6eq5vkylwi) |
-| Declaration of conformity, attached to the inspection | [`ipfs://bafkreihtnn…nsa2e`](https://inbrowser.link/ipfs/bafkreihtnneuanum2wo7tikuj7wgmrw4owgnbruv7h5mh4diduxx5nsa2e) |
-
-Read the topic yourself, without trusting this page:
-
-```bash
-curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10668028/messages?order=asc" \
-  | jq -r '.messages[] | "\(.sequence_number) \(.message|@base64d)"'
-```
-
-The third message is the inspection. Its attachment commits the declaration's
-CID and its sha256, `f36b4940…6eb640d1`. The document is small enough to be a
-single raw block, so that sha256 is literally inside the CID — decode
-`bafkreihtnn…` and you get the same 32 bytes. The indexer fetches the
-declaration back as a CAR from a public gateway it does not trust, checks it
-against the CID, and reports it verified. The links above open through
-`inbrowser.link`, which does the same check in your browser.
 
 ## What you need installed
 
