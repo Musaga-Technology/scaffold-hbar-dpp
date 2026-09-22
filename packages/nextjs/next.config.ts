@@ -2,9 +2,12 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  // Emits a self-contained server with only the traced dependencies, which is
-  // what keeps the Docker image small and lets it run without a yarn install.
-  output: "standalone",
+  // Standalone output only when building the container image. It keeps that
+  // image small, but it is incompatible with `next start` — which is what
+  // `yarn next:serve` runs — and Next warns about exactly that. Making it
+  // conditional means the ordinary local path stays clean and Docker still
+  // gets its traced, self-contained server.
+  ...(process.env.BUILD_STANDALONE === "true" ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: path.join(__dirname, "../.."),
   // @sh/indexer/events ships TypeScript source and is the reference
   // implementation of the HCS event model. Only that subpath is ever imported;

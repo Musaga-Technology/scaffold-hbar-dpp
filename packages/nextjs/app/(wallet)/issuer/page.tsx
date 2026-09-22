@@ -28,10 +28,44 @@ const Issuer = async () => {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10">
-      <header className="mb-8">
-        <h1 className="mb-1 mt-0 text-3xl font-bold">Issuer</h1>
-        <p className="m-0 text-base-content/70">Register products and record what happens to them.</p>
+      <header className="mb-6">
+        <h1 className="mb-1 mt-0 text-3xl font-bold">Issue a passport</h1>
+        <p className="m-0 text-base-content/70">
+          Give a physical product a record anyone can check, then keep that record up to date.
+        </p>
       </header>
+
+      {/* The sequence was only ever described in the README. Someone standing in
+          front of the form should be able to see where this leads. */}
+      <ol className="mb-8 grid list-none gap-3 p-0 sm:grid-cols-3">
+        {[
+          {
+            n: "1",
+            title: "Register it here",
+            body: "Creates the product's lifecycle log, mints one token for this exact item, and records the first entry.",
+          },
+          {
+            n: "2",
+            title: "Record what happens",
+            body: "Shipped, inspected, repaired. Attach certificates — they are re-checked later, not just stored.",
+          },
+          {
+            n: "3",
+            title: "Hand it over",
+            body: "Transfer it to a distributor, or send it to the person who bought the product.",
+          },
+        ].map(step => (
+          <li key={step.n} className="rounded-xl border border-base-300 bg-base-100 p-4">
+            <div className="mb-1 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {step.n}
+              </span>
+              <span className="font-semibold">{step.title}</span>
+            </div>
+            <p className="m-0 text-sm text-base-content/70">{step.body}</p>
+          </li>
+        ))}
+      </ol>
 
       {!tokenId ? (
         <div className="rounded-2xl border border-warning bg-warning/5 p-6" data-testid="not-configured">

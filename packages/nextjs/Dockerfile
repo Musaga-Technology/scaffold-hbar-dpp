@@ -28,7 +28,8 @@ COPY . .
 
 # The app imports @sh/indexer/events for the shared event model, so the indexer
 # workspace has to be present at build time even though it is a separate image.
-RUN corepack enable && yarn workspace @sh/nextjs build
+# Standalone output is opt-in; see packages/nextjs/next.config.ts for why.
+RUN corepack enable && BUILD_STANDALONE=true yarn workspace @sh/nextjs build
 
 FROM node:20-slim AS runner
 WORKDIR /app

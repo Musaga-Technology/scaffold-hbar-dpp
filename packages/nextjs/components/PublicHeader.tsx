@@ -17,11 +17,13 @@ import { useOutsideClick } from "~~/hooks/scaffold-hbar/useOutsideClick";
  * Links into the wallet section still work; those pages mount the connector
  * themselves.
  */
+// No "Verify" entry: it pointed at /verify/1, an arbitrary serial that means
+// nothing on a registry with different products. Home is the entry point for
+// verifying — it carries the passport list and a serial search.
 const links = [
-  { label: "Home", href: "/" },
-  { label: "Verify", href: "/verify/1", icon: <QrCodeIcon className="h-4 w-4" /> },
-  { label: "Issuer", href: "/issuer", icon: <BuildingStorefrontIcon className="h-4 w-4" /> },
-  { label: "My Passports", href: "/my-passports", icon: <WalletIcon className="h-4 w-4" /> },
+  { label: "Home", href: "/", icon: <QrCodeIcon className="h-4 w-4" /> },
+  { label: "Issue a passport", href: "/issuer", icon: <BuildingStorefrontIcon className="h-4 w-4" /> },
+  { label: "My passports", href: "/my-passports", icon: <WalletIcon className="h-4 w-4" /> },
 ];
 
 const NavLinks = () => {

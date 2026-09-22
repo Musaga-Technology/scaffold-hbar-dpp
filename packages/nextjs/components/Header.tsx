@@ -4,7 +4,7 @@ import React, { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bars3Icon, BugAntIcon, BuildingStorefrontIcon, QrCodeIcon, WalletIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, BugAntIcon, BuildingStorefrontIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-hbar";
 import { useOutsideClick } from "~~/hooks/scaffold-hbar";
 
@@ -21,17 +21,12 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/",
   },
   {
-    label: "Verify",
-    href: "/verify/1",
-    icon: <QrCodeIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Issuer",
+    label: "Issue a passport",
     href: "/issuer",
     icon: <BuildingStorefrontIcon className="h-4 w-4" />,
   },
   {
-    label: "My Passports",
+    label: "My passports",
     href: "/my-passports",
     icon: <WalletIcon className="h-4 w-4" />,
   },
