@@ -42,7 +42,10 @@ part of the template rather than an add-on.
 | **Run it for real** — 5 commands | a funded [testnet account](https://portal.hedera.com) | Your own registry on Hedera: tokens, topics, documents on IPFS, all verifiable on HashScan |
 
 It is already running on testnet if you would rather see that first:
-[serial 2 and its lifecycle topic](#proof-it-runs-on-hedera-testnet).
+[serial 2 and its lifecycle topic](#proof-it-runs-on-hedera-testnet). If you
+would rather read than run: [design notes](docs/design-notes.md) covers why
+reconciliation, content addressing and the index work the way they do, and
+[AGENTS.md](AGENTS.md) is the briefing for coding agents working in the repo.
 
 ## What people use this for
 
