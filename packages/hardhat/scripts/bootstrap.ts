@@ -416,7 +416,9 @@ async function main(): Promise<void> {
   }
 
   console.log("\nNext:");
-  console.log("  yarn indexer:dev      # index it and reconcile custody");
+  // An indexer started before this run holds the old configuration and will not
+  // see the product just registered until it is restarted.
+  console.log("  yarn indexer:dev      # index it and reconcile custody (restart it if already running)");
   console.log("  yarn next:start       # then open the passport");
   console.log(`\n  http://localhost:3000/verify/${state.serial}\n`);
 }
