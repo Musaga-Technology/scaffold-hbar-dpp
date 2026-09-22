@@ -427,6 +427,11 @@ async function main(): Promise<void> {
   console.log(`  serial    ${hashscan.serial(network, tokenId, state.serial!)}`);
   console.log(`  topic     ${hashscan.topic(network, state.topicId!)}`);
 
+  if (process.env.BOOTSTRAP_NEW_PRODUCT !== "true" && assessment.breakdown.length === 0) {
+    console.log("\nEverything already existed, so nothing was registered. For another product:");
+    console.log("  yarn passport:new-product");
+  }
+
   console.log("\nNext:");
   console.log("  yarn indexer:dev      # index it and reconcile custody");
   console.log("  yarn next:start       # then open the passport");

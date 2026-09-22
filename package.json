@@ -48,6 +48,7 @@
     "next:start": "yarn workspace @sh/nextjs start",
     "screenshots": "node scripts/screenshots.mjs",
     "passport:bootstrap": "yarn workspace @sh/hardhat passport:bootstrap",
+    "passport:new-product": "yarn workspace @sh/hardhat passport:new-product",
     "passport:status": "yarn workspace @sh/hardhat passport:status",
     "postinstall": "husky",
     "precommit": "lint-staged",

@@ -45,7 +45,7 @@ The indexer never takes a key. It only reads.
 | `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_PRIVATE_KEY` | Optional. Leave blank and the bootstrap derives the operator from the deployer key, resolving its `0.0.x` id through the mirror node. |
 | `BOOTSTRAP_COLLECTION_FEE_HBAR` | HBAR forwarded to cover HTS token creation, default `20`. Raise it if `createCollection` reverts. |
 | `PINATA_JWT` | Optional. Pins the HIP-412 metadata and a demo conformity declaration, attached to the inspection event, and refuses any CID from Pinata that does not match the one computed locally. Without it, metadata is served by the app and no document is attached. |
-| `BOOTSTRAP_NEW_PRODUCT` | Set to `true` for one run to register another demo product on the same registry and collection. Earlier products are kept in `passport.state.json` and stay in `INDEXER_TOPIC_IDS`. |
+| `BOOTSTRAP_NEW_PRODUCT` | What `yarn passport:new-product` sets: register another demo product on the same registry and collection. Earlier products are kept in `passport.state.json` and stay in `INDEXER_TOPIC_IDS`. Use the command rather than setting this by hand. |
 
 The bootstrap only sets its own keys in `packages/nextjs/.env.local` and
 `packages/indexer/.env.local`. Anything else you put there, such as

@@ -179,6 +179,7 @@ template, `docker compose up` needs Docker alone.
 | Command | What it does |
 | --- | --- |
 | `yarn passport:bootstrap` | Zero to a live passport on Hedera testnet |
+| `yarn passport:new-product` | Register another demo product on the same registry; earlier ones stay indexed |
 | `yarn passport:status` | Check every entity against the mirror node |
 | `yarn indexer:dev` | Poll, reconcile, serve the index API |
 | `yarn indexer:replay` | Drop the index and rebuild from sequence 1 |

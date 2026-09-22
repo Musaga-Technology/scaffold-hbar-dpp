@@ -14,6 +14,11 @@ import { spawn } from "child_process";
  * Accepts the network as either:
  *   - Positional: ts-node runBootstrapWithPK.ts hederaTestnet
  *   - Flag:       ts-node runBootstrapWithPK.ts --network hederaTestnet
+ *
+ * `--new-product` registers another demo product on the existing registry
+ * (`yarn passport:new-product`). A flag rather than asking people to prefix an
+ * environment variable: the prefix is easy to drop when copying a command, and
+ * does not work in Windows shells at all.
  */
 async function main() {
   const networkIndex = process.argv.indexOf("--network");
@@ -25,6 +30,7 @@ async function main() {
         : "hederaTestnet";
 
   const hardhatArgs = ["run", "scripts/bootstrap.ts", "--network", networkName];
+  if (process.argv.includes("--new-product")) process.env.BOOTSTRAP_NEW_PRODUCT = "true";
 
   const run = () => {
     const hardhat = spawn("hardhat", hardhatArgs, {

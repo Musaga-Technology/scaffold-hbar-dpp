@@ -17,6 +17,7 @@
     "lint": "eslint",
     "lint-staged": "eslint",
     "passport:bootstrap": "ts-node scripts/runBootstrapWithPK.ts",
+    "passport:new-product": "ts-node scripts/runBootstrapWithPK.ts --new-product",
     "passport:status": "hardhat run scripts/status.ts --network hederaTestnet",
     "test": "REPORT_GAS=true hardhat test",
     "test:forking": "HEDERA_FORKING=true REPORT_GAS=true hardhat test",
