@@ -411,8 +411,9 @@ async function main(): Promise<void> {
   console.log(`  topic     ${hashscan.topic(network, state.topicId!)}`);
 
   if (process.env.BOOTSTRAP_NEW_PRODUCT !== "true" && assessment.breakdown.length === 0) {
-    console.log("\nEverything already existed, so nothing was registered. For another product:");
-    console.log("  yarn passport:new-product");
+    console.log("\nEverything already existed, so nothing was registered.");
+    console.log("  http://localhost:3000/issuer   register your own products here");
+    console.log("  yarn passport:new-product      or add another demo product from the CLI");
   }
 
   console.log("\nNext:");
