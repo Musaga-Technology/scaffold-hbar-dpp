@@ -89,11 +89,47 @@ export function decodeRegistryLogs(logs: readonly MirrorContractLog[]): Discover
       serial,
       topicId,
       issuer: issuerTopic ? `0x${stripHex(issuerTopic).slice(24)}` : undefined,
-      consensusTimestamp: log.consensus_timestamp,
+      consensusTimestamp: log.timestamp,
     });
   }
 
   return discovered;
+}
+
+/**
+ * Discovers topics incrementally, for a long-running indexer.
+ *
+ * `resolveTopicIds` reads the registry's whole log history, which is right for a
+ * one-shot replay and wrong for a loop that runs every few seconds: the cost
+ * would grow with every registration and custody transfer, forever. This keeps
+ * the topics it has seen and asks only for logs after the last one.
+ *
+ * @param mirror Mirror node client.
+ * @param configuredTopicIds Topics from INDEXER_TOPIC_IDS; when set, the registry is not consulted.
+ * @param registryAddress Registry contract address, when configured.
+ * @returns A function returning the current topic list on each call.
+ */
+export function createTopicDiscovery(
+  mirror: MirrorNodeClient,
+  configuredTopicIds: readonly string[],
+  registryAddress?: string,
+): () => Promise<string[]> {
+  const topics = new Set<string>();
+  let cursor: string | undefined;
+
+  return async () => {
+    if (configuredTopicIds.length > 0) return [...configuredTopicIds];
+    if (!registryAddress) return [];
+
+    const logs = await mirror.fetchContractLogs(registryAddress, 100, 1000, cursor);
+    for (const product of decodeRegistryLogs(logs)) topics.add(product.topicId);
+    // Advance past every log read, not just registrations — the next call only
+    // needs what is new, whatever kind it is.
+    const last = logs.at(-1)?.timestamp;
+    if (last) cursor = last;
+
+    return [...topics].sort();
+  };
 }
 
 /**

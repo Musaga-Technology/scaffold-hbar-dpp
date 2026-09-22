@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { handleRoute } from "../src/api.js";
-import { decodeProductRegisteredData, decodeRegistryLogs, resolveTopicIds } from "../src/discover.js";
+import { MirrorNodeClient } from "../src/mirror.js";
+import {
+  createTopicDiscovery,
+  decodeProductRegisteredData,
+  decodeRegistryLogs,
+  resolveTopicIds,
+} from "../src/discover.js";
 import { pollOnce } from "../src/poller.js";
 import { reconcileAll } from "../src/reconcile.js";
 import { createMemoryStore } from "../src/store/index.js";
@@ -164,18 +170,20 @@ describe("index API routes", () => {
   });
 });
 
+/** Encodes a ProductRegistered log body carrying a topic id. */
+function encodeLogData(topicId: string): string {
+  const bytes = Buffer.from(topicId, "utf8");
+  const offset = (64).toString(16).padStart(64, "0");
+  const productHash = "ab".repeat(32);
+  const length = bytes.length.toString(16).padStart(64, "0");
+  const body = bytes.toString("hex").padEnd(Math.ceil(bytes.length / 32) * 64, "0");
+  return `0x${offset}${productHash}${length}${body}`;
+}
+
+const TOPIC0 = "0x03f4aef151c70745f44693f202360f2e4b8c4a7d4b13373a9fb6f9ccfab2bb2a";
+
 describe("topic discovery", () => {
   /** ABI-encodes (string topicId, bytes32 productHash) as the log body. */
-  function encodeLogData(topicId: string): string {
-    const bytes = Buffer.from(topicId, "utf8");
-    const offset = (64).toString(16).padStart(64, "0");
-    const productHash = "ab".repeat(32);
-    const length = bytes.length.toString(16).padStart(64, "0");
-    const body = bytes.toString("hex").padEnd(Math.ceil(bytes.length / 32) * 64, "0");
-    return `0x${offset}${productHash}${length}${body}`;
-  }
-
-  const TOPIC0 = "0x03f4aef151c70745f44693f202360f2e4b8c4a7d4b13373a9fb6f9ccfab2bb2a";
 
   it("decodes a topic id out of the log body", () => {
     expect(decodeProductRegisteredData(encodeLogData("0.0.6666666666"))).toBe("0.0.6666666666");
@@ -193,7 +201,7 @@ describe("topic discovery", () => {
         address: "0xreg",
         data: encodeLogData("0.0.6666666666"),
         topics: [TOPIC0, `0x${"0".repeat(63)}1`, `0x${"0".repeat(24)}${"11".repeat(20)}`],
-        consensus_timestamp: "1000.000000000",
+        timestamp: "1000.000000000",
       },
     ]);
 
@@ -209,7 +217,7 @@ describe("topic discovery", () => {
           address: "0xreg",
           data: encodeLogData("0.0.6666666666"),
           topics: [`0x${"ff".repeat(32)}`, `0x${"0".repeat(63)}1`],
-          consensus_timestamp: "1000.000000000",
+          timestamp: "1000.000000000",
         },
       ]),
     ).toEqual([]);
@@ -237,18 +245,96 @@ describe("topic discovery", () => {
             address: "0xreg",
             data: encodeLogData("0.0.6666666666"),
             topics: [TOPIC0, `0x${"0".repeat(63)}1`],
-            consensus_timestamp: "1000.000000000",
+            timestamp: "1000.000000000",
           },
           {
             address: "0xreg",
             data: encodeLogData("0.0.7777777777"),
             topics: [TOPIC0, `0x${"0".repeat(63)}2`],
-            consensus_timestamp: "1001.000000000",
+            timestamp: "1001.000000000",
           },
         ],
       },
     });
 
     expect(await resolveTopicIds(client, [], "0xregistry")).toEqual(["0.0.6666666666", "0.0.7777777777"]);
+  });
+
+  it("follows pagination, so products past the first page of logs are still discovered", async () => {
+    // Discovery used to read one page and stop. With other registry logs
+    // (custody transfers, allow-list changes) filling that page, product 3
+    // below would never have been indexed.
+    const registration = (topic: string, serial: number, ts: string) => ({
+      address: "0xreg",
+      data: encodeLogData(topic),
+      topics: [TOPIC0, `0x${serial.toString(16).padStart(64, "0")}`],
+      timestamp: ts,
+    });
+    const noise = { address: "0xreg", data: "0x", topics: [`0x${"ab".repeat(32)}`], timestamp: "1.0" };
+    const pages: Record<string, unknown> = {
+      first: { logs: [registration("0.0.6666666666", 1, "1000.0"), noise], links: { next: "/page-2" } },
+      "/page-2": { logs: [noise, noise], links: { next: "/page-3" } },
+      "/page-3": { logs: [registration("0.0.8888888888", 3, "1002.0")], links: { next: null } },
+    };
+    const requested: string[] = [];
+    const client = new MirrorNodeClient("https://mirror.example", async (url: string) => {
+      const route = url.replace("https://mirror.example", "");
+      requested.push(route);
+      const body = route.includes("/results/logs") ? pages.first : pages[route];
+      return { ok: true, status: 200, statusText: "OK", json: async () => body };
+    });
+
+    expect(await resolveTopicIds(client, [], "0xregistry")).toEqual(["0.0.6666666666", "0.0.8888888888"]);
+    expect(requested).toHaveLength(3);
+  });
+
+  it("stops rather than looping forever on a pagination cycle", async () => {
+    const client = new MirrorNodeClient("https://mirror.example", async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({ logs: [], links: { next: "/same-page" } }),
+    }));
+
+    await expect(client.fetchContractLogs("0xregistry", 100, 5)).rejects.toThrow(/more than 500 logs/);
+  });
+});
+
+describe("createTopicDiscovery", () => {
+  it("reads only new logs on each pass, and remembers what it already found", async () => {
+    const registration = (topic: string, serial: number, ts: string) => ({
+      address: "0xreg",
+      data: encodeLogData(topic),
+      topics: [TOPIC0, `0x${serial.toString(16).padStart(64, "0")}`],
+      timestamp: ts,
+    });
+    const history = [registration("0.0.6666666666", 1, "1000.000000001")];
+    const requested: string[] = [];
+    const client = new MirrorNodeClient("https://mirror.example", async (url: string) => {
+      requested.push(url);
+      const after = url.match(/timestamp=gt:([\d.]+)/)?.[1];
+      const logs = history.filter(log => !after || Number(log.timestamp) > Number(after));
+      return { ok: true, status: 200, statusText: "OK", json: async () => ({ logs, links: { next: null } }) };
+    });
+
+    const discover = createTopicDiscovery(client, [], "0xregistry");
+    expect(await discover()).toEqual(["0.0.6666666666"]);
+    expect(requested[0]).not.toContain("timestamp=");
+
+    // A product registered while the indexer is running.
+    history.push(registration("0.0.8888888888", 2, "1005.000000000"));
+    expect(await discover()).toEqual(["0.0.6666666666", "0.0.8888888888"]);
+    expect(requested[1]).toContain("timestamp=gt:1000.000000001");
+
+    // Nothing new: the list holds, and the query starts after the latest log.
+    expect(await discover()).toEqual(["0.0.6666666666", "0.0.8888888888"]);
+    expect(requested[2]).toContain("timestamp=gt:1005.000000000");
+  });
+
+  it("uses an explicit topic list without consulting the registry", async () => {
+    const client = new MirrorNodeClient("https://mirror.example", async () => {
+      throw new Error("the registry should not be read");
+    });
+    expect(await createTopicDiscovery(client, ["0.0.1"], "0xregistry")()).toEqual(["0.0.1"]);
   });
 });

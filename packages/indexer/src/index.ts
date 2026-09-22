@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { startApi } from "./api.js";
 import { verifyPendingAttachments } from "./attachments.js";
 import { hasIndexTarget, loadConfig, type IndexerConfig } from "./config.js";
-import { resolveTopicIds } from "./discover.js";
+import { createTopicDiscovery, resolveTopicIds } from "./discover.js";
 import { MirrorNodeClient } from "./mirror.js";
 import { pollOnce } from "./poller.js";
 import { reconcileAll } from "./reconcile.js";
@@ -167,13 +167,14 @@ export async function runCommand(
 
     let knownTopics: string[] = [];
     let warnedAboutNoTopics = false;
+    const discoverTopics = createTopicDiscovery(mirror, config.topicIds, config.registryAddress);
 
     while (!stopped) {
       try {
         // Topics are re-resolved every pass, not once at startup. A product
         // registered after this process started creates a new topic, and an
         // indexer that only looked once would never index it.
-        const topicIds = await resolveTopicIds(mirror, config.topicIds, config.registryAddress);
+        const topicIds = await discoverTopics();
 
         if (topicIds.length === 0) {
           // Nothing to do *yet* is not a failure. Exiting here would make the

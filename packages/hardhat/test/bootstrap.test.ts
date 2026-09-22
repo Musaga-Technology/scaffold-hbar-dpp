@@ -15,7 +15,14 @@ import {
   resolveCollectionFeeHbar,
   tinybarToHbar,
 } from "../scripts/lib/preflight";
-import { emptyState, readState, remainingSteps, writeState, type PassportState } from "../scripts/lib/state";
+import {
+  emptyState,
+  readState,
+  remainingSteps,
+  startNewProduct,
+  writeState,
+  type PassportState,
+} from "../scripts/lib/state";
 import { buildEvent, canonicalize, sha256Hex } from "../scripts/lib/events";
 import { DEMO_DOCUMENT, DEMO_EVENTS, demoProductHash } from "../scripts/lib/demoProduct";
 import { mergeEnvFile } from "../scripts/lib/envFile";
@@ -359,5 +366,59 @@ describe("env file merging", function () {
   it("is stable when run twice", function () {
     const once = mergeEnvFile("X=1\n", { A: "1", B: "2" }, "note");
     expect(mergeEnvFile(once, { A: "1", B: "2" }, "note")).to.equal(once);
+  });
+});
+
+describe("registering another product", function () {
+  const finished = (): PassportState => ({
+    ...emptyState("hederaTestnet"),
+    registryAddress: "0xreg",
+    tokenId: "0.0.5005",
+    serial: 1,
+    topicId: "0.0.6001",
+    metadataPointer: "ipfs://bafkreiexample",
+    eventTransactionIds: ["0.0.1@1.1", "0.0.1@1.2"],
+    documentCid: "bafkreidoc",
+  });
+
+  it("archives a finished product and clears only the per-product fields", function () {
+    const state = finished();
+    expect(startNewProduct(state)).to.equal(true);
+
+    expect(state.previousProducts).to.deep.equal([
+      { serial: 1, topicId: "0.0.6001", metadataPointer: "ipfs://bafkreiexample", documentCid: "bafkreidoc" },
+    ]);
+    expect(state.serial).to.equal(undefined);
+    expect(state.topicId).to.equal(undefined);
+    expect(state.eventTransactionIds).to.equal(undefined);
+    // The registry and collection are shared by every product.
+    expect(state.registryAddress).to.equal("0xreg");
+    expect(state.tokenId).to.equal("0.0.5005");
+  });
+
+  it("finishes an unfinished product instead of abandoning it", function () {
+    // Registered, but the run died before its events were submitted. Starting a
+    // new one here would leave serial 1 on-chain with an empty log.
+    const state = { ...finished(), eventTransactionIds: undefined };
+    expect(startNewProduct(state)).to.equal(false);
+    expect(state.serial).to.equal(1);
+    expect(state.previousProducts).to.equal(undefined);
+  });
+
+  it("does nothing when there is no product yet", function () {
+    expect(startNewProduct(emptyState("hederaTestnet"))).to.equal(false);
+  });
+
+  it("keeps every earlier product across repeated runs", function () {
+    const state = finished();
+    for (const [serial, topicId] of [
+      [2, "0.0.6002"],
+      [3, "0.0.6003"],
+    ] as const) {
+      startNewProduct(state);
+      Object.assign(state, { serial, topicId, eventTransactionIds: ["x"] });
+    }
+    startNewProduct(state);
+    expect(state.previousProducts!.map(product => product.serial)).to.deep.equal([1, 2, 3]);
   });
 });

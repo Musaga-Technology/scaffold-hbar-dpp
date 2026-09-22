@@ -29,7 +29,13 @@ export interface MirrorContractLog {
   address: string;
   data: string;
   topics: string[];
-  consensus_timestamp: string;
+  /**
+   * Consensus timestamp. Named `timestamp` on this endpoint — not
+   * `consensus_timestamp` as on topic messages. This type said the latter until
+   * incremental discovery read it against the real mirror node and found it
+   * always undefined.
+   */
+  timestamp: string;
   transaction_hash?: string;
 }
 
@@ -134,10 +140,43 @@ export class MirrorNodeClient {
     return token?.token_id;
   }
 
-  /** Reads contract logs, used to discover product topics from registry events. */
-  async fetchContractLogs(contractAddress: string, limit = 100): Promise<MirrorContractLog[]> {
-    const route = `/api/v1/contracts/${contractAddress}/results/logs?limit=${limit}&order=asc`;
-    const page = await this.get<{ logs?: MirrorContractLog[] }>(route);
-    return page?.logs ?? [];
+  /**
+   * Reads every log a contract has emitted, following the mirror node's
+   * pagination to the end.
+   *
+   * Used to discover product topics from registry events. It used to read one
+   * page of 100 and stop, so once the registry had emitted 100 logs of any kind
+   * — registrations, custody transfers, allow-list changes — new products were
+   * silently never discovered. Filtering to `ProductRegistered` server-side is
+   * not an option: the mirror node refuses topic filters without a timestamp
+   * range, so the filtering happens in `decodeRegistryLogs`.
+   *
+   * @param contractAddress Registry address.
+   * @param limit Page size; 100 is the mirror node's maximum.
+   * @param maxPages Safety stop against a pagination loop.
+   * @param afterTimestamp Only logs after this consensus timestamp, so a
+   *        long-running indexer reads new logs rather than the whole history.
+   */
+  async fetchContractLogs(
+    contractAddress: string,
+    limit = 100,
+    maxPages = 1000,
+    afterTimestamp?: string,
+  ): Promise<MirrorContractLog[]> {
+    const logs: MirrorContractLog[] = [];
+    const since = afterTimestamp ? `&timestamp=gt:${afterTimestamp}` : "";
+    let route: string | undefined =
+      `/api/v1/contracts/${contractAddress}/results/logs?limit=${limit}&order=asc${since}`;
+
+    for (let pages = 0; route; pages++) {
+      if (pages >= maxPages) {
+        throw new Error(`Registry ${contractAddress} has more than ${maxPages * limit} logs; stopping discovery.`);
+      }
+      const page: { logs?: MirrorContractLog[]; links?: { next?: string | null } } | undefined = await this.get(route);
+      logs.push(...(page?.logs ?? []));
+      route = page?.links?.next ?? undefined;
+    }
+
+    return logs;
   }
 }

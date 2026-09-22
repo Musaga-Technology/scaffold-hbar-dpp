@@ -120,3 +120,39 @@ export function remainingSteps(state: PassportState): {
     needsProduct: state.serial === undefined,
   };
 }
+
+/**
+ * Starts a new demo product on the existing registry and collection.
+ *
+ * Opt-in with BOOTSTRAP_NEW_PRODUCT=true. The finished product is moved to
+ * `previousProducts` rather than forgotten; the indexer still finds it, and
+ * every other product, through the registry.
+ *
+ * @param state State to modify in place.
+ * @returns True when a finished product was archived and a new one can start;
+ *          false when there is nothing to archive or the current one is
+ *          unfinished and should be completed first.
+ */
+export function startNewProduct(state: PassportState): boolean {
+  if (state.serial === undefined || !state.topicId) return false;
+  // A product whose events were never submitted is unfinished, not done.
+  // Archiving it would leave a registered serial with an empty log; finish it
+  // instead, and the next run starts the new one.
+  if (!state.eventTransactionIds?.length) return false;
+  state.previousProducts = [
+    ...(state.previousProducts ?? []),
+    {
+      serial: state.serial,
+      topicId: state.topicId,
+      ...(state.metadataPointer ? { metadataPointer: state.metadataPointer } : {}),
+      ...(state.documentCid ? { documentCid: state.documentCid } : {}),
+    },
+  ];
+  delete state.serial;
+  delete state.topicId;
+  delete state.registerTxHash;
+  delete state.metadataPointer;
+  delete state.eventTransactionIds;
+  delete state.documentCid;
+  return true;
+}

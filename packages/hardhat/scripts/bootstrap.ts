@@ -38,7 +38,7 @@ import {
   resolveCollectionFeeHbar,
   tinybarToHbar,
 } from "./lib/preflight";
-import { STATE_FILENAME, readState, writeState, type PassportState } from "./lib/state";
+import { STATE_FILENAME, readState, startNewProduct, writeState, type PassportState } from "./lib/state";
 import { buildEvent, sha256Hex } from "./lib/events";
 import {
   DEMO_CATEGORY,
@@ -114,39 +114,18 @@ function writeEnvLocal(filePath: string, entries: Record<string, string>, note: 
   console.log(`  updated ${path.relative(REPO_ROOT, filePath)}`);
 }
 
-/**
- * Starts a new demo product on the existing registry and collection.
- *
- * Opt-in with BOOTSTRAP_NEW_PRODUCT=true. The finished product is moved to
- * `previousProducts` rather than forgotten, and its topic stays indexed.
- */
-function startNewProduct(state: PassportState): void {
-  if (state.serial === undefined || !state.topicId) return;
-  state.previousProducts = [
-    ...(state.previousProducts ?? []),
-    {
-      serial: state.serial,
-      topicId: state.topicId,
-      ...(state.metadataPointer ? { metadataPointer: state.metadataPointer } : {}),
-      ...(state.documentCid ? { documentCid: state.documentCid } : {}),
-    },
-  ];
-  delete state.serial;
-  delete state.topicId;
-  delete state.registerTxHash;
-  delete state.metadataPointer;
-  delete state.eventTransactionIds;
-  delete state.documentCid;
-}
-
 async function main(): Promise<void> {
   const network = resolveNetwork(hre.network.name, hre.network.config.chainId);
   const mirror = mirrorNodeUrl(network);
   const statePath = path.join(WORKSPACE_ROOT, STATE_FILENAME);
   const state: PassportState = readState(statePath, hre.network.name);
-  if (process.env.BOOTSTRAP_NEW_PRODUCT === "true" && state.serial !== undefined) {
-    console.log(`Keeping serial ${state.serial} and registering a new demo product alongside it.`);
-    startNewProduct(state);
+  if (process.env.BOOTSTRAP_NEW_PRODUCT === "true") {
+    const previous = state.serial;
+    if (startNewProduct(state)) {
+      console.log(`Keeping serial ${previous} and registering a new demo product alongside it.`);
+    } else if (previous !== undefined || state.topicId) {
+      console.log("The last product was left unfinished — finishing it before starting another.");
+    }
   }
 
   const { deployer } = await hre.getNamedAccounts();
@@ -414,8 +393,12 @@ async function main(): Promise<void> {
     {
       HEDERA_NETWORK: network,
       PASSPORT_REGISTRY_ADDRESS: state.registryAddress!,
-      // Every product this bootstrap has registered, not just the latest.
-      INDEXER_TOPIC_IDS: [...(state.previousProducts ?? []).map(product => product.topicId), state.topicId!].join(","),
+      // Deliberately empty. An explicit list takes precedence over discovering
+      // products from the registry's ProductRegistered logs, and writing one
+      // here meant every product registered afterwards — through the issuer
+      // page, or another bootstrap run — was never indexed. Empty, the indexer
+      // follows the registry and picks up new products as they appear.
+      INDEXER_TOPIC_IDS: "",
     },
     "The indexer only ever reads; it needs no key.",
   );
