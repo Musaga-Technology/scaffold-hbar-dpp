@@ -61,6 +61,14 @@ has to check them.
 | **Machinery and spare parts** | serial, service log, conformity declarations | field engineers, insurers, buyers of used equipment |
 | **Luxury goods** | provenance, ownership handovers, authentication reports | resale market, customs |
 
+Building something sustainability-focused? The battery category already carries
+`carbonFootprintKgPerKwh` and `recycledContentPct`, and `product.repaired` and
+`product.recycled` are shipped event types. Read
+[what this proves and what it does not](docs/design-notes.md#sustainability-claims-and-where-this-template-stops)
+first — it verifies that a document is the one that was attested, not that a
+number is true — and how it fits with [Guardian](https://github.com/hashgraph/guardian),
+which exists for the second problem.
+
 Battery, textile and a generic category ship with the template. **Adding one is
 a single JSON file** in `schemas/categories/` — no code — and it drives the
 registration form, the validation and how the passport renders. See

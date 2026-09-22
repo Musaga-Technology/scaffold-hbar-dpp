@@ -197,6 +197,60 @@ method, `put`. Filebase, web3.storage or a self-hosted IPFS node are the same
 shape; see `AGENTS.md`.
 
 
+## Sustainability claims, and where this template stops
+
+Two of the battery category's fields are environmental: `carbonFootprintKgPerKwh`
+and `recycledContentPct`. The event types include `product.repaired` and
+`product.recycled`. That makes this a reasonable starting point for a
+circularity or compliance product, and adding a category is one JSON file.
+
+Be clear about what is verified, though. This template proves that **a document
+is the one that was attested** at a given consensus timestamp, and that a
+custody claim matches the ledger. It does **not** prove that a number is true.
+An issuer who types `carbonFootprintKgPerKwh: 41.2` gets that figure faithfully
+recorded, hashed and timestamped — a provenance guarantee, not a measurement
+one. The UI states the narrow version on purpose, and anything built on top
+should keep doing so.
+
+What is missing for a serious sustainability product is an attestation of the
+*figures*: who measured them, under which methodology, and with what evidence.
+
+### Guardian
+
+[Guardian](https://github.com/hashgraph/guardian) is Hedera's open-source
+policy and dMRV engine, built for exactly that gap: methodologies, verifiable
+credentials, and the issuance of environmental assets. It is the natural layer
+above this template, not a competitor to it — Guardian attests the numbers, a
+passport carries the product's identity, history and documents.
+
+The two fit together on the wire, and it is worth knowing how before designing
+an integration. Checked against testnet in September 2026:
+
+- Guardian anchors its artefacts on HCS. Its testnet registry topic is
+  `0.0.1960`, and each standard registry announces its own topic there.
+- A registry topic carries `DID-Document`, `Schema`, `VC-Document`,
+  `Guardian-Role-Document` and `Policy` messages. Each document message carries
+  `cid` and `uri` (`ipfs://…`) alongside the issuer DID and a `relationships`
+  chain — the same "reference by content address" shape this template uses, and
+  readable from the same mirror node.
+- Our event schema already accepts `did:hedera:…` as an actor, and the
+  attachment model already verifies CIDv0 (`Qm…`), which is what Guardian
+  writes. So a Guardian VC can be referenced from a passport event today, with
+  no change to the schema.
+
+One caveat, found by trying it rather than assuming: **Guardian's own documents
+are usually not retrievable from public IPFS gateways.** Guardian pins through
+Filebase, and fetching four testnet VC and DID document CIDs returned timeouts
+from Filebase and Pinata, 429 from ipfs.io and dweb.link, and 520 for a
+verifiable CAR request. The indexer would report those as `unreachable`, which
+is the honest verdict: the reference is sound and the content could not be read.
+A deployment that pins its Guardian documents to a public gateway does not have
+this problem, and the existing verifier checks them with no changes.
+
+That is why there is no Guardian adapter in this template. Referencing a
+Guardian credential needs no code, and verifying its content needs the
+publisher to make it retrievable — something a template cannot decide for you.
+
 ## Getting a passport to the person who bought the product
 
 A passport that only the issuer can hold is a database with extra steps. The
