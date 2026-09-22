@@ -11,7 +11,7 @@
     "metadataJson": "{\"category\":\"textile\",\"fibreComposition\":\"68% recycled polyester, 32% organic cotton\",\"manufacturedAt\":\"2026-07-20\",\"manufacturer\":\"Vestland Apparel\",\"name\":\"Coastal Parka, recycled shell\",\"originCountry\":\"PT\",\"recycledContentPct\":68}",
     "currentHolder": "0.0.1111111111",
     "status": "discrepancy",
-    "lastReconciledAt": "2026-09-18T17:44:12.675Z"
+    "lastReconciledAt": "2026-09-22T13:27:29.690Z"
   },
   "events": [
     {
@@ -73,8 +73,8 @@
       "tokenId": "0.0.5555555555",
       "type": "product.inspected",
       "actor": "0.0.1111111111",
-      "payloadJson": "{\"attachments\":[{\"cid\":\"bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku\",\"hash\":\"3e1b682a370eef4edbf674c80033c01f0696568fa1e2b41bcf5aeddf50ea2b69\",\"name\":\"fibre-composition-report.txt\",\"type\":\"text/plain\"}],\"inspector\":\"In-house QA\",\"result\":\"pass\"}",
-      "payloadHash": "47ea32a8d33c2418397867f9d73da49cae4632d76d3b113c1a5348abd9aba78a",
+      "payloadJson": "{\"attachments\":[{\"cid\":\"bafkreidsmtlma3r46qigjjkhjqtawcblzwd3kwroff5wl6dmfkbjkotaw4\",\"hash\":\"f042855118d39adabd6debad460f616dfeaaedd95b40fe1a779feb86c0376c42\",\"name\":\"fibre-composition-report.txt\",\"type\":\"text/plain\"}],\"inspector\":\"In-house QA\",\"result\":\"pass\"}",
+      "payloadHash": "91b98f658914ce7eb49d470975c90137e540b07888d1d6080386ec095825752a",
       "ref": null,
       "hashValid": true,
       "malformedReason": null,
@@ -84,8 +84,8 @@
       "payload": {
         "attachments": [
           {
-            "cid": "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
-            "hash": "3e1b682a370eef4edbf674c80033c01f0696568fa1e2b41bcf5aeddf50ea2b69",
+            "cid": "bafkreidsmtlma3r46qigjjkhjqtawcblzwd3kwroff5wl6dmfkbjkotaw4",
+            "hash": "f042855118d39adabd6debad460f616dfeaaedd95b40fe1a779feb86c0376c42",
             "name": "fibre-composition-report.txt",
             "type": "text/plain"
           }
@@ -133,16 +133,16 @@
     {
       "topicId": "0.0.7777777777",
       "sequenceNumber": 3,
-      "cid": "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+      "cid": "bafkreidsmtlma3r46qigjjkhjqtawcblzwd3kwroff5wl6dmfkbjkotaw4",
       "protocol": "ipfs",
-      "declaredHash": "3e1b682a370eef4edbf674c80033c01f0696568fa1e2b41bcf5aeddf50ea2b69",
+      "declaredHash": "f042855118d39adabd6debad460f616dfeaaedd95b40fe1a779feb86c0376c42",
       "name": "fibre-composition-report.txt",
       "mediaType": "text/plain",
-      "observedHash": "31d3d61f330a6b1c69d7d162317ccac809520a6057fcead0f3500ea36f2dfaf3",
-      "bytes": 85,
+      "observedHash": "7264d6c06e3cf41064a5474c260b082bcd87b55a2e297b65f86c2a82953a60b7",
+      "bytes": 99,
       "state": "mismatch",
-      "note": "The document at this address does not match the hash committed on HCS. Declared 3e1b682a370eef4e…, found 31d3d61f330a6b1c…. It has been replaced since it was attested.",
-      "checkedAt": "2026-09-18T17:44:12.661Z"
+      "note": "The document this reference names is not the one whose hash was committed on HCS. Declared f042855118d39ada…, found 7264d6c06e3cf410…. The issuer attested to different content than the document they pointed at.",
+      "checkedAt": "2026-09-22T13:27:29.679Z"
     }
   ]
 }

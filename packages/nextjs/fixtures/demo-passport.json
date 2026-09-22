@@ -11,7 +11,7 @@
     "metadataJson": "{\"batteryCategory\":\"EV\",\"category\":\"battery\",\"chemistry\":\"LFP\",\"manufacturedAt\":\"2026-07-14\",\"manufacturer\":\"Northwind Cells\",\"name\":\"PowerCell 72 kWh EV Pack\",\"originCountry\":\"PL\",\"ratedCapacityKwh\":72}",
     "currentHolder": "0.0.3333333333",
     "status": "verified",
-    "lastReconciledAt": "2026-09-18T17:44:12.672Z"
+    "lastReconciledAt": "2026-09-22T13:27:29.687Z"
   },
   "events": [
     {
@@ -98,8 +98,8 @@
       "tokenId": "0.0.5555555555",
       "type": "product.inspected",
       "actor": "0.0.2222222222",
-      "payloadJson": "{\"attachments\":[{\"cid\":\"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi\",\"hash\":\"992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81\",\"name\":\"conformity-certificate.txt\",\"type\":\"text/plain\"},{\"cid\":\"kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk\",\"hash\":\"9c6a614c5629e24dddd30c843bfe52741aeb2d4c131e38ca6a43ab5c0db37876\",\"name\":\"end-of-life-declaration.txt\",\"protocol\":\"arweave\",\"type\":\"text/plain\"}],\"inspector\":\"TUV Rheinland\",\"result\":\"pass\"}",
-      "payloadHash": "73b75b22dc5aefc55f90a017b36dbe48400b429e25bfabc4db5b493fc5014032",
+      "payloadJson": "{\"attachments\":[{\"cid\":\"bafkreibn4mm54czofmqwm3lzedyhjqri6cv6zljyfnx6nu5pttfid4ngva\",\"hash\":\"2de319de0b2e2b21666d7920f074c228f0abecad382b6fe6d3af9cca81f1a6a8\",\"name\":\"conformity-certificate.txt\",\"type\":\"text/plain\"},{\"cid\":\"kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk\",\"hash\":\"9c6a614c5629e24dddd30c843bfe52741aeb2d4c131e38ca6a43ab5c0db37876\",\"name\":\"end-of-life-declaration.txt\",\"protocol\":\"arweave\",\"type\":\"text/plain\"}],\"inspector\":\"Example Test Laboratory\",\"result\":\"pass\"}",
+      "payloadHash": "a3344eb25d420568c79c6214fa97635408c8981db36b7b16c976c76cebfb688f",
       "ref": null,
       "hashValid": true,
       "malformedReason": null,
@@ -109,8 +109,8 @@
       "payload": {
         "attachments": [
           {
-            "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-            "hash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
+            "cid": "bafkreibn4mm54czofmqwm3lzedyhjqri6cv6zljyfnx6nu5pttfid4ngva",
+            "hash": "2de319de0b2e2b21666d7920f074c228f0abecad382b6fe6d3af9cca81f1a6a8",
             "name": "conformity-certificate.txt",
             "type": "text/plain"
           },
@@ -122,7 +122,7 @@
             "type": "text/plain"
           }
         ],
-        "inspector": "TUV Rheinland",
+        "inspector": "Example Test Laboratory",
         "result": "pass"
       }
     },
@@ -183,16 +183,16 @@
     {
       "topicId": "0.0.6666666666",
       "sequenceNumber": 4,
-      "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+      "cid": "bafkreibn4mm54czofmqwm3lzedyhjqri6cv6zljyfnx6nu5pttfid4ngva",
       "protocol": "ipfs",
-      "declaredHash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
+      "declaredHash": "2de319de0b2e2b21666d7920f074c228f0abecad382b6fe6d3af9cca81f1a6a8",
       "name": "conformity-certificate.txt",
       "mediaType": "text/plain",
-      "observedHash": "992f99315663c9ff3da702e8d12ce63b9975ad33d19e09fb3f1e7b33c088ad81",
-      "bytes": 95,
+      "observedHash": "2de319de0b2e2b21666d7920f074c228f0abecad382b6fe6d3af9cca81f1a6a8",
+      "bytes": 105,
       "state": "verified",
-      "note": null,
-      "checkedAt": "2026-09-18T17:44:12.661Z"
+      "note": "Rebuilt from blocks each checked against the CID, served by trustless-gateway.link. No gateway was trusted.",
+      "checkedAt": "2026-09-22T13:27:29.679Z"
     },
     {
       "topicId": "0.0.6666666666",
@@ -205,8 +205,8 @@
       "observedHash": "9c6a614c5629e24dddd30c843bfe52741aeb2d4c131e38ca6a43ab5c0db37876",
       "bytes": 93,
       "state": "verified",
-      "note": null,
-      "checkedAt": "2026-09-18T17:44:12.661Z"
+      "note": "Hash matched the bytes served by arweave.net, which is trusted to return this transaction's data — an Arweave id is not a content hash.",
+      "checkedAt": "2026-09-22T13:27:29.679Z"
     }
   ]
 }

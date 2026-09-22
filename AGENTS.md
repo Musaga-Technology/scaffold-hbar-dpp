@@ -12,7 +12,7 @@ These are not style preferences. Breaking one breaks the template's premise.
 
 1. **HCS is a log, not a database.** Messages are capped at 1024 bytes and validated against `schemas/passport-event.schema.json`. Large content — certificates, images, reports — is referenced by **CID plus sha256**, never embedded and never by bare URL. A URL is a promise; a CID is a proof.
 2. **The browser never reads HCS.** Reads come from the index API. Acceptance assertion C8 checks this in devtools.
-3. **A referenced document is checked, not assumed.** Pinning a file proves nothing on its own. The indexer fetches every attachment back and re-hashes it against the digest committed on HCS. `mismatch` means it was replaced and downgrades the passport; `unreachable` means a gateway failed and does **not** — conflating them would be crying wolf.
+3. **A referenced document is checked, not assumed — and no gateway is trusted.** Pinning a file proves nothing on its own. The indexer fetches every IPFS attachment as a CAR, checks each block against the CID, rebuilds the document from blocks that passed, and compares its sha256 with the one committed on HCS. Never add a path that hashes whatever a gateway returns for an IPFS document: that trusts the gateway and makes the CID decorative. `mismatch` means the CID names a different document from the one whose hash was committed — content at a CID cannot change, so it is never "replaced later" — and it downgrades the passport. `unreachable` means no gateway served a copy that checked out, and does **not** downgrade anything; conflating them would be crying wolf.
 4. **Custody truth comes from the NFT, not from HCS.** HCS carries *claims*. The mirror node's NFT transfer history is what actually happened. Where they disagree, show a `discrepancy` — never reconcile by overwriting one with the other, and never hide it.
 5. **Secrets are server-side only.** `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` never get a `NEXT_PUBLIC_` prefix and never reach the browser. The indexer holds no key; it only reads.
 6. **Everything must work with no `.env`, no keys and no network.** `yarn lint`, `yarn next:check-types`, `yarn next:build`, `yarn hardhat:compile`, `yarn hardhat:test` and `yarn indexer:test` all pass offline. The UI falls back to bundled fixtures.
@@ -31,7 +31,8 @@ These are not style preferences. Breaking one breaks the template's premise.
 | `packages/hardhat/scripts/lib/events.ts` | Canonicalisation, sha256, event construction |
 | `packages/indexer/src/` | Mirror node poller, decoder, store, reconciliation |
 | `packages/indexer/src/reconcile.ts` | Where custody claims are checked against NFT transfers |
-| `packages/indexer/src/attachments.ts` | Where referenced documents are fetched back and re-hashed |
+| `packages/indexer/src/attachments.ts` | Where referenced documents are fetched back and judged |
+| `packages/indexer/src/content/ipfs.ts` | CID computation and trustless CAR verification, shared with the app |
 | `packages/indexer/src/events/attachments.ts` | The attachment reference model, shared with the app |
 | `packages/nextjs/services/storage/` | Pinning provider interface; Pinata is the default |
 | `packages/nextjs/app/verify/[serial]/` | Public passport page — no wallet, no env |
@@ -87,7 +88,7 @@ All of it lives in `packages/indexer/src/reconcile.ts`. A `custody.transferred` 
 ### Swap the storage provider
 
 `packages/nextjs/services/storage/` defines one interface with a single `put`
-method. `pinata.ts` is about sixty lines; Filebase, web3.storage and a
+method. `pinata.ts` is about a hundred lines; Filebase, web3.storage and a
 self-hosted IPFS node are the same shape. Nothing outside that directory knows
 which provider is in use.
 
@@ -100,8 +101,16 @@ written before Arweave support decode unchanged. An unrecognised protocol is
 **dropped rather than assumed** — verifying an id against the wrong network
 would produce a confident, meaningless verdict.
 
-The indexer verifies both identically: fetch, hash, compare. Only the gateway
-path differs (`/ipfs/<cid>` versus `/<txid>` at the root).
+The two are **not** verified equally. IPFS documents are checked against their
+CID block by block, so no gateway is trusted. An Arweave id is not a content
+hash, so the Arweave path trusts its gateway to return the transaction's data;
+the committed sha256 still binds the content, and the verdict's note says what
+was trusted.
+
+A new IPFS provider must produce the same CID as `computeCid` in
+`packages/indexer/src/content/ipfs.ts` (CIDv1, raw leaves, 256 KiB chunks —
+Kubo's `--cid-version=1` defaults). The upload route refuses a provider whose
+CID disagrees, so a mismatch shows up as a refused upload, not a bad passport.
 
 ### Swap SQLite for Postgres
 

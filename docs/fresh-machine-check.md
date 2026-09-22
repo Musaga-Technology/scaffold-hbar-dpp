@@ -35,7 +35,7 @@ npm create scaffold-hbar@latest my-passports -- \
 | `yarn indexer:test` | 145 passing |
 | `yarn next:build` | clean |
 | Boot with no `.env` | `/`, `/verify/1`, `/verify/2`, `/issuer`, `/my-passports`, `/api/passport/products` all 200 |
-| Demo passport renders | yes — `/verify/2` shows its discrepancy and replaced document |
+| Demo passport renders | yes — `/verify/2` shows its discrepancy and a document that does not match its attestation |
 | `npx hedera-harness validate` | passed, 0 findings, Tier 2 green on 6 routes |
 
 Disk footprint after install:

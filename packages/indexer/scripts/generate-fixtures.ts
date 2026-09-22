@@ -22,6 +22,7 @@ import { pollOnce } from "../src/poller.js";
 import { reconcileAll } from "../src/reconcile.js";
 import { createMemoryStore } from "../src/store/index.js";
 import { verifyPendingAttachments, type FetchLike as GatewayFetch } from "../src/attachments.js";
+import { buildCar } from "../src/content/ipfs.js";
 import { createHash } from "node:crypto";
 import { MirrorNodeClient, type FetchLike } from "../src/mirror.js";
 
@@ -56,26 +57,36 @@ const BASE_EPOCH = Math.floor(Date.parse(BASE_ISO) / 1000);
 /**
  * Demo documents.
  *
- * `INTACT` is a certificate whose bytes still hash to what the event committed
- * to. `SWAPPED` is one that was replaced after attestation — the passport
- * references it, the hash on HCS no longer matches, and the indexer says so.
- * That second case is the whole reason the storage integration is load-bearing
- * rather than decorative, so it is in the fixtures where a reviewer can see it.
+ * `INTACT` is a certificate whose CID and committed hash both name the same
+ * bytes. The textile passport shows the failure content addressing actually
+ * catches: the issuer points at the lab's real report, which says 41% recycled,
+ * but commits the hash of a better-looking version saying 68% that was never
+ * published. Content behind a CID cannot change, so this is not a document
+ * "replaced later" — the attestation contradicted itself from the start, and
+ * the indexer says so. That case is why the storage integration is
+ * load-bearing rather than decorative, so it is in the fixtures where a
+ * reviewer can see it.
  *
- * CIDs are syntactically valid but unallocated, for the same reason the entity
- * ids are: nothing here should resolve to somebody else's real content.
+ * The CIDs are the real CIDs of these bodies, computed below, so the demo is
+ * internally consistent — anyone can recompute them. Issuers are fictional, for
+ * the same reason the entity ids are: a made-up certificate should not carry a
+ * real certification body's name.
  */
-const INTACT_CID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
-/** An Arweave transaction id: 43 base64url characters. Also unallocated. */
-const PERMANENT_AR_ID = "kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk";
-const SWAPPED_CID = "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku";
-
 const INTACT_BODY =
-  "CONFORMITY CERTIFICATE\nEU 2023/1542 Annex XIII\nPowerCell 72 kWh EV Pack\nIssued by TUV Rheinland";
+  "CONFORMITY CERTIFICATE\nEU 2023/1542 Annex XIII\nPowerCell 72 kWh EV Pack\nIssued by Example Test Laboratory";
 const PERMANENT_BODY =
   "END-OF-LIFE DECLARATION\nRecycling route registered\nRetention required beyond product lifetime";
-const ATTESTED_BODY = "FIBRE COMPOSITION REPORT\n68% recycled polyester, 32% organic cotton\nVerified by OEKO-TEX";
-const REPLACED_BODY = "FIBRE COMPOSITION REPORT\n41% recycled content\nThis document replaced the attested one";
+/** What the lab actually reported, and what the passport's CID points at. */
+const REFERENCED_BODY =
+  "FIBRE COMPOSITION REPORT\n41% recycled polyester, 59% virgin polyester\nIssued by Example Textile Lab";
+/** The version the issuer committed a hash of. Never published anywhere. */
+const CLAIMED_BODY =
+  "FIBRE COMPOSITION REPORT\n68% recycled polyester, 32% organic cotton\nIssued by Example Textile Lab";
+
+const INTACT = await buildCar(new TextEncoder().encode(INTACT_BODY));
+const REFERENCED = await buildCar(new TextEncoder().encode(REFERENCED_BODY));
+/** An Arweave transaction id: 43 base64url characters. Unallocated. */
+const PERMANENT_AR_ID = "kP3xMiEMRD9Wn9Q0vSHpbQ9GXXbQXn3KfvOaNT9Zsxk";
 
 const sha256Hex = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 
@@ -169,10 +180,10 @@ const cleanMessages = buildMessages(CLEAN_TOPIC, [
       actor: DISTRIBUTOR,
       payload: {
         result: "pass",
-        inspector: "TUV Rheinland",
+        inspector: "Example Test Laboratory",
         attachments: [
           {
-            cid: INTACT_CID,
+            cid: INTACT.cid,
             hash: sha256Hex(INTACT_BODY),
             name: "conformity-certificate.txt",
             type: "text/plain",
@@ -275,12 +286,12 @@ const forgedMessages = buildMessages(FORGED_TOPIC, [
       payload: {
         result: "pass",
         inspector: "In-house QA",
-        // The hash committed here is of ATTESTED_BODY. The gateway now serves
-        // REPLACED_BODY at that address.
+        // The CID names the lab's real report; the hash is of the version the
+        // issuer wished it said.
         attachments: [
           {
-            cid: SWAPPED_CID,
-            hash: sha256Hex(ATTESTED_BODY),
+            cid: REFERENCED.cid,
+            hash: sha256Hex(CLAIMED_BODY),
             name: "fibre-composition-report.txt",
             type: "text/plain",
           },
@@ -389,29 +400,29 @@ const mirror = new MirrorNodeClient("https://testnet.mirrornode.hedera.com", loc
 
 await pollOnce(store, mirror, [CLEAN_TOPIC, FORGED_TOPIC]);
 
-// A gateway that still serves the intact certificate, but has had the test
-// report replaced underneath it.
-const gatewayBodies: Record<string, string> = {
-  [INTACT_CID]: INTACT_BODY,
-  [SWAPPED_CID]: REPLACED_BODY,
-  [PERMANENT_AR_ID]: PERMANENT_BODY,
+// An honest trustless gateway: CARs for IPFS, raw bytes for Arweave. Nothing
+// here is rigged — the textile report fails because of what the issuer
+// committed, and the same verifier that runs in production says so.
+const gatewayBodies: Record<string, Uint8Array> = {
+  [INTACT.cid]: INTACT.car,
+  [REFERENCED.cid]: REFERENCED.car,
+  [PERMANENT_AR_ID]: new TextEncoder().encode(PERMANENT_BODY),
 };
 const gatewayFetch: GatewayFetch = async (url: string) => {
-  // IPFS serves under /ipfs/<cid>; Arweave serves the id at the root.
-  const id = url.includes("/ipfs/") ? (url.split("/ipfs/")[1] ?? "") : (url.split("/").pop() ?? "");
+  // IPFS serves under /ipfs/<cid>?format=car; Arweave serves the id at the root.
+  const id = url.includes("/ipfs/") ? (url.split("/ipfs/")[1]?.split("?")[0] ?? "") : (url.split("/").pop() ?? "");
   const body = gatewayBodies[id];
   if (body === undefined) {
     return { ok: false, status: 404, statusText: "Not Found", arrayBuffer: async () => new ArrayBuffer(0) };
   }
-  return {
-    ok: true,
-    status: 200,
-    statusText: "OK",
-    arrayBuffer: async () => new TextEncoder().encode(body).buffer as ArrayBuffer,
-  };
+  return { ok: true, status: 200, statusText: "OK", arrayBuffer: async () => body.slice().buffer as ArrayBuffer };
 };
 
-await verifyPendingAttachments(store, { ipfs: "https://ipfs.io", arweave: "https://arweave.net" }, gatewayFetch);
+await verifyPendingAttachments(
+  store,
+  { ipfs: ["https://trustless-gateway.link"], arweave: "https://arweave.net" },
+  gatewayFetch,
+);
 await reconcileAll(store, mirror);
 
 fs.mkdirSync(APP_FIXTURE_DIR, { recursive: true });

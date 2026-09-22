@@ -64,7 +64,7 @@ export const DEMO_EVENTS = [
     type: "product.inspected" as const,
     payload: {
       result: "pass",
-      inspector: "TUV Rheinland",
+      inspector: "Example Test Laboratory",
       note: "State of health 100%, no cell imbalance.",
     },
   },

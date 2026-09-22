@@ -13,11 +13,13 @@ Arweave for the documents.
 
 **What makes this more than a database with a blockchain attached:**
 
-- **Certificates are content-addressed, and re-checked.** A conformity
-  declaration or test report lives on IPFS or Arweave, and the passport stores
-  its content address plus a hash. The indexer fetches each one back, re-hashes
-  it, and compares. A document swapped after it was signed off shows up as
-  **replaced** — not a broken link, not a green tick.
+- **Certificates are content-addressed, and checked without trusting anyone.**
+  A conformity declaration or test report lives on IPFS, and the passport
+  commits its CID plus a sha256 to HCS. The indexer fetches it back from public
+  gateways it does not trust, checks every block against the CID, and compares
+  the rebuilt document with the committed hash. A gateway that serves altered
+  content is caught and skipped. An issuer who points at one document and
+  attests to another is flagged in red — not a broken link, not a green tick.
 - **Custody is reconciled, not asserted.** The event log says what someone
   *claimed* happened. The token's transfer history says what the network
   actually recorded. Where they disagree the passport shows a **discrepancy**
@@ -26,9 +28,11 @@ Arweave for the documents.
   `yarn indexer:verify` rebuilds the whole index from the ledger to prove it
   matches.
 
-Remove the storage layer and a passport's documents become URLs that may or may
-not still be what was attested — which for a regulated product is most of the
-record. That is why it is part of the template rather than an add-on.
+Remove IPFS and a passport's documents become URLs: you would have to trust
+whoever hosts them, and the party most motivated to swap a certificate is often
+the one hosting it. With a CID checked block by block, nobody has to be trusted
+— which, for a regulated product, is most of the record. That is why storage is
+part of the template rather than an add-on.
 
 ---
 
@@ -42,13 +46,14 @@ yarn next:start
 Open **http://localhost:3000/verify/1**.
 
 That is a battery passport, running on bundled demo data. Now open
-**/verify/2** — a garment whose inspection document was swapped after it was
-signed off. The page says so, in red, instead of showing a green tick.
+**/verify/2** — a garment whose issuer linked the lab's real fibre report (41%
+recycled) but committed the hash of a better-looking version (68%). The page
+says so, in red, instead of showing a green tick.
 
 That contrast is the entire point of the template. Everything below is how to do
 it with real products.
 
-![A passport that fails its checks: the custody claim flagged in red with the reason, and a document whose content no longer matches the hash committed on HCS](docs/screenshots/verify-discrepancy.png)
+![A passport that fails its checks: the custody claim flagged in red with the reason, and a document that does not match the hash committed on HCS](docs/screenshots/verify-discrepancy.png)
 
 Every claim carries a link to HashScan, so nothing above has to be taken on this
 page's word. [See the whole passport](docs/screenshots/verify-discrepancy-full.png).
@@ -105,8 +110,9 @@ your product  ──┬──  HTS NFT serial      "which item is this, and who 
                 │
                 └──  IPFS / Arweave      "the certificates, by content address"
                           │
-                     indexer ──── reads all three from the mirror node,
-                                  checks they agree, and serves the answer
+                     indexer ──── reads the first two from the mirror node and
+                                  the third from untrusted gateways, checks
+                                  they agree, and serves the answer
 ```
 
 The interesting part is the last line. HCS carries *claims* — someone said this
@@ -114,11 +120,23 @@ product shipped. The NFT's transfer history is what actually happened. The
 indexer compares them, and where they disagree the passport says **discrepancy**
 rather than quietly picking one.
 
-It does the same for documents: fetches each one back, re-hashes it, and
-compares against the digest committed on HCS. That is what `/verify/2`
-demonstrates — the attested hash and the one actually found, side by side.
+It does the same for documents. Each one is fetched back as a CAR from
+[trustless gateways](https://specs.ipfs.tech/http-gateways/trustless-gateway/),
+every block is hashed and checked against the CID, and only then is the
+rebuilt document compared with the sha256 committed on HCS. So a verdict never
+rests on a gateway's word:
 
-![The documents panel: a replaced certificate showing its CID, the sha256 attested on HCS, and the different hash actually found](docs/screenshots/documents.png)
+- **verified** — the document the CID names is the one that was attested
+- **does not match** — the CID names a different document from the one whose
+  hash was committed. Content at a CID cannot change, so this was wrong from
+  the moment it was written. It downgrades the passport.
+- **unreachable** — no gateway served a copy that checked out. Proves nothing
+  either way, and does not downgrade anything.
+
+That is what `/verify/2` shows — the attested hash and the one actually found,
+side by side.
+
+![The documents panel: a fibre report whose CID names a different document from the one whose hash was attested, with both hashes side by side](docs/screenshots/documents.png)
 
 Reads never touch HCS directly — they come from the index, which is rebuildable
 from the mirror node at any time. `yarn indexer:verify` proves it by replaying

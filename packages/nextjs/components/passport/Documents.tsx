@@ -15,10 +15,13 @@ import type { AttachmentState, PassportAttachment } from "~~/lib/indexClient";
  *
  * This is the part of the storage integration that is worth anything. Pinning a
  * certificate is easy; what is shown here is the indexer having fetched each
- * document back and re-hashed it against the digest committed on HCS.
+ * document back from untrusted gateways, checked every block against its CID,
+ * and compared the result with the sha256 committed on HCS.
  *
  * The four states are kept distinct on purpose, especially the last two:
- * `mismatch` means a document was replaced after it was attested, which is
+ * `mismatch` means the attestation contradicts itself — the hash on HCS is not
+ * the hash of the document the CID names. Content behind a CID cannot change,
+ * so this is not "replaced later"; it was wrong when it was written. That is
  * fraud-shaped. `unreachable` usually means a gateway is having a bad day. A UI
  * that collapsed them into one red badge would be crying wolf, and would train
  * people to ignore the badge that matters.
@@ -31,13 +34,13 @@ const PRESENTATION: Record<
     label: "Verified",
     className: "text-success",
     icon: CheckCircleIcon,
-    blurb: "Fetched and re-hashed — this is the document that was attested.",
+    blurb: "Checked against its address and the hash on HCS — this is the document that was attested.",
   },
   mismatch: {
-    label: "Replaced",
+    label: "Does not match",
     className: "text-error",
     icon: ExclamationTriangleIcon,
-    blurb: "The content at this address is not what was attested.",
+    blurb: "This address holds a different document from the one whose hash was attested.",
   },
   unreachable: {
     label: "Unreachable",
@@ -71,7 +74,7 @@ export const Documents = ({
 }) => {
   if (attachments.length === 0) return null;
 
-  const replaced = attachments.filter(attachment => attachment.state === "mismatch").length;
+  const contradicted = attachments.filter(attachment => attachment.state === "mismatch").length;
 
   return (
     <section className="mt-10" data-testid="documents">
@@ -80,14 +83,17 @@ export const Documents = ({
         <span className="text-sm text-base-content/60">{attachments.length} referenced, content-addressed on IPFS</span>
       </div>
 
-      {replaced > 0 && (
+      {contradicted > 0 && (
         <div className="alert alert-error mb-4" data-testid="document-alert">
           <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
           <span>
             <strong>
-              {replaced === 1 ? "A document has been replaced" : `${replaced} documents have been replaced`}
+              {contradicted === 1
+                ? "A document does not match its attestation."
+                : `${contradicted} documents do not match their attestations.`}
             </strong>{" "}
-            since it was attested. The content behind the address no longer hashes to the digest recorded on HCS.
+            The hash recorded on HCS is not the hash of the document the passport points to. Content at a CID cannot
+            change afterwards, so this was wrong from the moment it was written.
           </span>
         </div>
       )}
@@ -120,8 +126,16 @@ export const Documents = ({
 
                   <p className="mt-1 mb-0 text-sm text-base-content/70">{blurb}</p>
 
-                  {attachment.note && attachment.state !== "verified" && (
-                    <p className="mt-2 mb-0 rounded-lg bg-base-200 p-2 text-xs text-base-content/80">
+                  {/* Shown for verified documents too: "no gateway was trusted" is the
+                      part a reader cannot otherwise see. */}
+                  {attachment.note && (
+                    <p
+                      className={`mt-2 mb-0 rounded-lg p-2 text-xs ${
+                        attachment.state === "verified"
+                          ? "bg-success/5 text-base-content/70"
+                          : "bg-base-200 text-base-content/80"
+                      }`}
+                    >
                       {attachment.note}
                     </p>
                   )}
@@ -153,7 +167,7 @@ export const Documents = ({
                     rel="noreferrer"
                     title={
                       demo
-                        ? "Demo data — this CID is illustrative and holds no real content"
+                        ? "Demo data — the real CID of the demo document, but nothing pins it, so gateways will not find it"
                         : "Open the document through an IPFS gateway"
                     }
                     className={`mt-2 inline-flex items-center gap-1 text-xs ${

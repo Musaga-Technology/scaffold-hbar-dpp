@@ -43,7 +43,7 @@ proof are the same value:
 ```json
 "payload": {
   "result": "pass",
-  "inspector": "TUV Rheinland",
+  "inspector": "Example Test Laboratory",
   "attachments": [
     {
       "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
@@ -62,24 +62,63 @@ Two things follow, and both matter.
 stops matching, and the indexer reports it exactly as it reports a forged
 custody claim.
 
-**The content is checked, not assumed.** Pinning a certificate is easy and
-almost nobody verifies it afterwards. On every pass the indexer fetches each
-document back through a gateway, hashes what actually arrives, and compares it
-to the digest committed on HCS:
+**The content is checked, not assumed — and no gateway is trusted to do it.**
+Pinning a certificate is easy and almost nobody verifies it afterwards. The
+obvious check — fetch the file from a gateway and hash it — has a hole: it
+trusts the gateway to have fetched the right thing. At that point the CID is a
+URL with extra steps, and swapping `ipfs.io` for an S3 bucket would change
+nothing.
+
+So the indexer asks gateways for a
+[CAR](https://ipld.io/specs/transport/car/) instead
+(`/ipfs/<cid>?format=car&dag-scope=entity`, the
+[trustless gateway](https://specs.ipfs.tech/http-gateways/trustless-gateway/)
+spec). Every block is hashed and checked against its own CID, the DAG must be
+rooted at the CID the event committed to, and the document is rebuilt only from
+blocks that passed. Then its sha256 is compared with the one on HCS. The code is
+`packages/indexer/src/content/ipfs.ts`, about 300 lines on `@ipld/car` and the
+UnixFS exporter.
+
+That changes what each verdict can mean:
 
 | State | Meaning |
 | --- | --- |
-| `verified` | Fetched and re-hashed. This is the document that was attested. |
-| `mismatch` | Something is at that address, but not what was attested. It was replaced. |
-| `unreachable` | Nothing answered. **Not** evidence the content is wrong — only that it could not be checked. |
+| `verified` | The document the CID names is the one whose hash was attested. |
+| `mismatch` | The CID names a *different* document from the one whose hash was committed. |
+| `unreachable` | No gateway served a copy that checked out. **Not** evidence the content is wrong. |
 | `pending` | Not checked yet. |
 
-A `mismatch` downgrades the whole passport to `discrepancy`, because a swapped
-certificate is as serious as a forged custody claim. An `unreachable` does not:
-a gateway having a bad day is not fraud, and a tool that cried wolf about it
-would train people to ignore the badge that matters. The bundled demo passports
-show both — serial 1 has a certificate that verifies, serial 2 has a test report
-that was replaced after attestation.
+A `mismatch` is **not** "the certificate was replaced later". Content behind a
+CID cannot change — that is the point of a CID. What it means is that the
+attestation contradicts itself: the issuer committed the address of one
+document and the hash of another. It was wrong from the moment it was written.
+That is fraud-shaped, and it downgrades the whole passport to `discrepancy`.
+
+A gateway that serves altered blocks cannot produce a `mismatch`, because
+nothing it serves is used until it checks out. It is caught, skipped in favour
+of the next gateway, and named in the note. If every gateway fails, the verdict
+is `unreachable`, which downgrades nothing — a gateway having a bad day is not
+fraud, and a tool that cried wolf about it would train people to ignore the
+badge that matters.
+
+Two public gateways are used by default, `trustless-gateway.link` and
+`gateway.pinata.cloud`, run by different operators. Because neither is trusted,
+the second one is only for availability, never a second opinion. Add your own
+Kubo node with `IPFS_GATEWAY_URL`.
+
+The bundled demo shows both outcomes. Serial 1 has a certificate that verifies.
+Serial 2's issuer linked the lab's real fibre report (41% recycled) but
+committed the hash of a better-looking version (68%) that was never published.
+Its CID is a raw CID, so its multihash *is* the sha256 of the document it names,
+and the contradiction can be read off the reference itself without fetching
+anything.
+
+**The address is computed, not reported.** The upload route computes each
+document's CID from its bytes before uploading, and refuses to attest if the
+pinning service reports a different one. CIDs are computed with Kubo's CIDv1
+defaults — raw leaves, 256 KiB chunks — which Pinata documents as its own.
+Conformance vectors in `packages/indexer/test/ipfs.test.ts` pin this against
+CIDs produced by Kubo 0.43.1 at every chunk boundary.
 
 **What this does not prove.** That a document says what it claims to say. It
 proves only that the document is the one attested at that consensus timestamp.
@@ -121,9 +160,13 @@ reconciliation and the public page all work with no storage configured at all.
 
 ### IPFS or Arweave
 
-Both are supported, and verification is identical either way — fetch the content
-back, hash it, compare. Only the gateway path differs, so a passport can carry
-documents on both at once. The bundled demo does exactly that.
+Both are supported, and a passport can carry documents on both at once; the
+bundled demo does exactly that. Verification is **not** equally strong, and
+the notes say so. An IPFS CID is a hash of the content, so the indexer checks
+the gateway's answer itself. An Arweave transaction id is not, so the indexer
+has to trust the gateway to return that transaction's data. The sha256 on HCS
+still binds the content, but on Arweave a `mismatch` could also mean a
+dishonest gateway, and the verdict's note does not pretend otherwise.
 
 The difference that matters is persistence, not decentralisation:
 
