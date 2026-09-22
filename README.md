@@ -146,21 +146,37 @@ Why it is built this way: [docs/design-notes.md](docs/design-notes.md).
 
 ## Proof it runs on Hedera testnet
 
-Bootstrapped 21 September 2026. Open any of these:
+Serial 2 was bootstrapped on 22 September 2026 and exercises every part of the
+template, including a real document. Open any of these:
 
 | | |
 | --- | --- |
 | Registry contract | [`0xCBc3089c…5f22D5a7A`](https://hashscan.io/testnet/contract/0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A) |
 | Collection | [`0.0.10649382`](https://hashscan.io/testnet/token/0.0.10649382) |
-| Passport serial 1 | [`0.0.10649382/1`](https://hashscan.io/testnet/token/0.0.10649382/1) |
-| Lifecycle topic | [`0.0.10649383`](https://hashscan.io/testnet/topic/0.0.10649383) |
+| Passport serial 2 | [`0.0.10649382/2`](https://hashscan.io/testnet/token/0.0.10649382/2) |
+| Lifecycle topic | [`0.0.10668028`](https://hashscan.io/testnet/topic/0.0.10668028) |
+| HIP-412 metadata, on the serial | [`ipfs://bafkreidu7j…vkylwi`](https://inbrowser.link/ipfs/bafkreidu7jb6w3eaddepjfptlng2skhjulk7abdpqftgwncw6eq5vkylwi) |
+| Declaration of conformity, attached to the inspection | [`ipfs://bafkreihtnn…nsa2e`](https://inbrowser.link/ipfs/bafkreihtnneuanum2wo7tikuj7wgmrw4owgnbruv7h5mh4diduxx5nsa2e) |
 
 Read the topic yourself, without trusting this page:
 
 ```bash
-curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10649383/messages?order=asc" \
+curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10668028/messages?order=asc" \
   | jq -r '.messages[] | "\(.sequence_number) \(.message|@base64d)"'
 ```
+
+The third message is the inspection. Its attachment commits the declaration's
+CID and its sha256, `f36b4940…6eb640d1`. The document is small enough to be a
+single raw block, so that sha256 is literally inside the CID — decode
+`bafkreihtnn…` and you get the same 32 bytes. The indexer fetches the
+declaration back as a CAR from a public gateway it does not trust, checks it
+against the CID, and reports it verified. The links above open through
+`inbrowser.link`, which does the same check in your browser.
+
+Serial 1, on topic [`0.0.10649383`](https://hashscan.io/testnet/topic/0.0.10649383),
+is the first bootstrap from the day before, made before documents were
+attached. Its metadata points at the app rather than IPFS, which is exactly the
+weakness serial 2 was made to fix.
 
 ## What you need installed
 

@@ -134,8 +134,17 @@ export function readAttachments(payload: unknown): EventAttachment[] {
   return attachments;
 }
 
-/** Default public gateway used to read IPFS content back. */
-export const DEFAULT_IPFS_GATEWAY = "https://ipfs.io";
+/**
+ * Gateway for links a person clicks to open a document.
+ *
+ * Not used for verification — the indexer checks documents itself, through
+ * trustless gateways, and those answer browsers with 406. `inbrowser.link` is
+ * the IPFS service-worker gateway: the viewer's own browser fetches the blocks
+ * and checks them against the CID, so the person clicking does not have to
+ * trust a gateway either. `ipfs.io` was the default until September 2026, when
+ * it began answering 429 with "switching to a service worker gateway only".
+ */
+export const DEFAULT_IPFS_GATEWAY = "https://inbrowser.link";
 
 /** Default public gateway used to read Arweave content back. */
 export const DEFAULT_ARWEAVE_GATEWAY = "https://arweave.net";

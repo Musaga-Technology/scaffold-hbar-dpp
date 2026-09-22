@@ -65,7 +65,9 @@ function humanBytes(bytes: number | null): string | undefined {
 
 export const Documents = ({
   attachments,
-  gateways = { ipfs: "https://ipfs.io", arweave: "https://arweave.net" },
+  // inbrowser.link verifies the document against its CID in the viewer's own
+  // browser. ipfs.io stopped serving files directly in September 2026.
+  gateways = { ipfs: "https://inbrowser.link", arweave: "https://arweave.net" },
   demo = false,
 }: {
   attachments: PassportAttachment[];
@@ -168,7 +170,7 @@ export const Documents = ({
                     title={
                       demo
                         ? "Demo data — the real CID of the demo document, but nothing pins it, so gateways will not find it"
-                        : "Open the document through an IPFS gateway"
+                        : "Opens through inbrowser.link, which checks the document against its CID in your browser"
                     }
                     className={`mt-2 inline-flex items-center gap-1 text-xs ${
                       demo ? "text-base-content/40 decoration-dotted" : "link link-hover text-primary"
