@@ -20,7 +20,8 @@ npm create scaffold-hbar@latest my-passports -- \
 
 ## Results
 
-**Date:** 21–22 September 2026 · **Host:** macOS 13.7, Node v22.19.0, Yarn 3.2.3
+**Scaffold and install measured 21–22 September 2026; suites, build and harness
+re-run 25 September 2026** · **Host:** macOS 13.7, Node v22.19.0, Yarn 3.2.3
 
 | Step | Result |
 | --- | --- |
@@ -30,9 +31,9 @@ npm create scaffold-hbar@latest my-passports -- \
 | `yarn next:check-types` | clean |
 | `yarn indexer:check-types` | clean |
 | `yarn hardhat:compile` | 7 contracts |
-| `yarn hardhat:test` | 76 passing, 4 pending (the opt-in fork suite) |
-| `yarn hardhat:test:forking` | 80 passing |
-| `yarn indexer:test` | 145 passing |
+| `yarn hardhat:test` | 93 passing, 4 pending (the opt-in fork suite) |
+| `yarn hardhat:test:forking` | 97 passing, in about 4 minutes |
+| `yarn indexer:test` | 178 passing |
 | `yarn next:build` | clean |
 | Boot with no `.env` | `/`, `/verify/1`, `/verify/2`, `/issuer`, `/my-passports`, `/api/passport/products` all 200 |
 | Demo passport renders | yes — `/verify/2` shows its discrepancy and a document that does not match its attestation |
@@ -43,7 +44,7 @@ Disk footprint after install:
 ```
 packages/nextjs/node_modules    1.7 GB
 packages/hardhat/node_modules   707 MB
-packages/indexer/node_modules   181 MB
+packages/indexer/node_modules   198 MB
 ```
 
 About 2.6 GB. Most of it is toolchain inherited from scaffold-hbar rather than
