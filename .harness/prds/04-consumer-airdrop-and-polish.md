@@ -19,6 +19,10 @@ Finish J5–J6, make the template feel finished, and make the README the best HC
      `INDEX_API_URL`. `docker compose up` must run the whole system on any
      container host, vendor-neutral. `yarn indexer:dev` stays the zero-setup
      SQLite path for local work.
+   - *Superseded 28 September 2026: the button below was removed. A Vercel
+     deploy of this monorepo was never verified end to end, and a one-click
+     button nobody had seen succeed did not belong in a README where every
+     other claim is checked. `vercel.json` stays, as inherited from the seed.*
    - Keep `packages/nextjs/vercel.json` (already in the seed — verify) and a
      "Deploy with Vercel" button in the README, presented as a preview of the
      public verify page only. The deployed preview must render the fixture

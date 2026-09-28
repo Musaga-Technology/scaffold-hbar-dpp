@@ -78,7 +78,6 @@
         "HCS",
         "mirror node",
         "yarn passport:status",
-        "Deploy with Vercel",
         "docker compose"
       ]
     },
