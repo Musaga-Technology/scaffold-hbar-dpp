@@ -15,14 +15,16 @@ import { IndexUnavailableError, listProducts } from "~~/lib/indexClient";
 export const dynamic = "force-dynamic";
 
 const Issuer = async () => {
-  let products;
+  // Only the product list needs the index. Registering goes straight to Hedera,
+  // so a stopped indexer used to blank the whole page — form included — for a
+  // reason that had nothing to do with registering.
+  let products: Awaited<ReturnType<typeof listProducts>> | undefined;
+  let indexError: IndexUnavailableError | undefined;
   try {
     products = await listProducts();
   } catch (error) {
-    if (error instanceof IndexUnavailableError) {
-      return <IndexUnavailable url={error.url} detail={error.detail} />;
-    }
-    throw error;
+    if (!(error instanceof IndexUnavailableError)) throw error;
+    indexError = error;
   }
   const tokenId = process.env.NEXT_PUBLIC_PASSPORT_TOKEN_ID;
 
@@ -96,7 +98,9 @@ const Issuer = async () => {
 
       <section>
         <h2 className="mb-3 mt-0 text-lg font-bold">Registered products</h2>
-        {products.length === 0 ? (
+        {indexError ? (
+          <IndexUnavailable url={indexError.url} detail={indexError.detail} compact />
+        ) : !products || products.length === 0 ? (
           <div className="rounded-xl border border-base-300 bg-base-100 p-6 text-center text-base-content/60">
             Nothing registered yet.
           </div>

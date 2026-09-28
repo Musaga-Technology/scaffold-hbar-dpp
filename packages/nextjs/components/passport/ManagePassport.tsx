@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { OperatorNotice, useOperatorConfigured } from "./OperatorNotice";
 import { SendToConsumer } from "./SendToConsumer";
 import { isAddress } from "viem";
 import { useAccount } from "wagmi";
@@ -78,6 +79,8 @@ export const ManagePassport = ({
     { cid: string; hash: string; name: string; type: string; bytes: number } | undefined
   >();
 
+  // Logging an event is a server-side HCS submission, so it needs the operator.
+  const operatorConfigured = useOperatorConfigured();
   // Undefined until asked, so nothing is claimed before the answer arrives.
   const [storageConfigured, setStorageConfigured] = useState<boolean | undefined>();
   const [recipient, setRecipient] = useState("");
@@ -205,6 +208,8 @@ export const ManagePassport = ({
           Appended to the product&apos;s topic, hash-anchored, capped at 1024 bytes.
         </p>
 
+        {operatorConfigured === false && <OperatorNotice />}
+
         <div className="form-control mb-4 w-full">
           <label className="label pb-1" htmlFor="event-type">
             <span className="label-text">Event type</span>
@@ -292,7 +297,7 @@ export const ManagePassport = ({
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary mt-5" disabled={logging}>
+        <button type="submit" className="btn btn-primary mt-5" disabled={logging || operatorConfigured === false}>
           {logging && <span className="loading loading-spinner loading-xs" />}
           Log event
         </button>

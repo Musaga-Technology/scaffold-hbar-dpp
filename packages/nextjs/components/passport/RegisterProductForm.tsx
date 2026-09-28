@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { OperatorNotice, useOperatorConfigured } from "./OperatorNotice";
 import { SchemaForm } from "./SchemaForm";
 import { canonicalize } from "@sh/indexer/events/canonicalize";
 import { METADATA_POINTER_MAX_BYTES, checkMetadataPointer } from "@sh/indexer/events/metadata";
 import { decodeEventLog, toBytes, toHex } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
-import { ArrowTopRightOnSquareIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
-import { useScaffoldWriteContract } from "~~/hooks/scaffold-hbar";
+import { ArrowTopRightOnSquareIcon, CheckCircleIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
+import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-hbar";
 import { CATEGORIES, type FieldIssue, toPayload, validateCategoryValues } from "~~/lib/categories";
 import { hashscan } from "~~/lib/hashscan";
 import { notification } from "~~/utils/scaffold-hbar";
@@ -52,6 +53,22 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
   const publicClient = usePublicClient();
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "PassportRegistry" });
 
+  // Both checked before the form can start. Registration creates the topic
+  // first and mints second, so without these a wallet the registry refuses got
+  // as far as paying for a topic before reverting with NotIssuer.
+  const operatorConfigured = useOperatorConfigured();
+  const { data: owner } = useScaffoldReadContract({ contractName: "PassportRegistry", functionName: "owner" });
+  const { data: isIssuer } = useScaffoldReadContract({
+    contractName: "PassportRegistry",
+    functionName: "isIssuer",
+    args: [address],
+    query: { enabled: Boolean(address) },
+  });
+  const isOwner = Boolean(address && owner && owner.toLowerCase() === address.toLowerCase());
+  // Undefined while either read is in flight, so nothing is refused early.
+  const mayRegister = owner === undefined || isIssuer === undefined ? undefined : isOwner || isIssuer;
+  const blocked = operatorConfigured === false || mayRegister === false;
+
   const [categoryId, setCategoryId] = useState(CATEGORIES[0]?.id ?? "generic");
   const [values, setValues] = useState<Record<string, string>>({});
   const [issues, setIssues] = useState<FieldIssue[]>([]);
@@ -69,6 +86,8 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!address) return;
+
+    if (blocked) return;
 
     const found = validateCategoryValues(category, values);
     setIssues(found);
@@ -241,7 +260,30 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
 
   return (
     <form onSubmit={submit} className="rounded-2xl border border-base-300 bg-base-100 p-6">
-      <div className="form-control mb-4 w-full max-w-sm">
+      {operatorConfigured === false && <OperatorNotice />}
+
+      {mayRegister === false && (
+        <div className="alert alert-error mb-5 items-start" data-testid="not-issuer-notice">
+          <NoSymbolIcon className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="text-sm">
+            <p className="m-0 font-semibold">This wallet cannot register products in this registry.</p>
+            <p className="mb-0 mt-1">
+              Only the registry owner and wallets it has allow-listed can. Connect the account you ran the bootstrap
+              with
+              {owner ? (
+                <>
+                  {" "}
+                  — <code className="break-all rounded bg-base-300/50 px-1">{owner}</code>
+                </>
+              ) : null}
+              , or have the owner call <code className="rounded bg-base-300/50 px-1">setIssuer</code> for this address
+              on the Debug Contracts page.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="form-control mb-4 flex w-full max-w-sm flex-col">
         <label className="label pb-1" htmlFor="category">
           <span className="label-text font-semibold">Product category</span>
         </label>
@@ -274,7 +316,7 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <button type="submit" className="btn btn-primary" disabled={Boolean(busy)}>
+        <button type="submit" className="btn btn-primary" disabled={Boolean(busy) || blocked}>
           {busy && <span className="loading loading-spinner loading-xs" />}
           {busy ? "Working…" : "Register product"}
         </button>

@@ -1,6 +1,6 @@
 import { fail, guard, ok } from "../_lib/responses";
 import { TopicCreateTransaction } from "@hiero-ledger/sdk";
-import { OperatorUnavailableError, createOperatorClient } from "~~/services/hederaClient";
+import { OperatorUnavailableError, createOperatorClient, hasOperatorKey } from "~~/services/hederaClient";
 
 /** Request body for creating a product's lifecycle topic. */
 interface CreateTopicRequest {
@@ -21,6 +21,17 @@ interface CreateTopicRequest {
  * registration the serial is not yet known — the mint that assigns it needs this
  * topic id as an argument — so the memo reads `:pending` until then.
  */
+/**
+ * Whether this server can create topics and submit events at all.
+ *
+ * So the issuer pages can say what to configure before someone fills in a form,
+ * rather than failing on submit. Reports presence only — nothing about the
+ * operator's id or key.
+ */
+export async function GET() {
+  return guard(async () => ok({ configured: hasOperatorKey() }));
+}
+
 export async function POST(request: Request) {
   return guard(async () => {
     let body: CreateTopicRequest;

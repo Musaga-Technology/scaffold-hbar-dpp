@@ -10,9 +10,18 @@ import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
  * confusion this page exists to prevent, so it states the problem and the one
  * command that fixes it.
  */
-export const IndexUnavailable = ({ url, detail }: { url: string; detail?: string }) => (
-  <div className="mx-auto w-full max-w-2xl px-5 py-16" data-testid="index-unavailable">
-    <div className="rounded-2xl border border-warning bg-warning/5 p-8">
+export const IndexUnavailable = ({
+  url,
+  detail,
+  compact = false,
+}: {
+  url: string;
+  detail?: string;
+  /** Inside another page, rather than as the page. */
+  compact?: boolean;
+}) => (
+  <div className={compact ? "w-full" : "mx-auto w-full max-w-2xl px-5 py-16"} data-testid="index-unavailable">
+    <div className={`rounded-2xl border border-warning bg-warning/5 ${compact ? "p-6" : "p-8"}`}>
       <div className="mb-3 flex items-center gap-2 text-warning">
         <ExclamationTriangleIcon className="h-6 w-6" />
         <h1 className="m-0 text-xl font-bold">The indexer is not running</h1>
