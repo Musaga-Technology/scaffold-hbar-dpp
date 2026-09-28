@@ -25,7 +25,7 @@
     "outro": {
       "sections": [
         {
-          "title": "Explore it first \u2014 no account needed",
+          "title": "Explore it first — no account needed",
           "steps": [
             {
               "label": "Start the app on bundled demo data",
@@ -50,17 +50,21 @@
             {
               "label": "3. Bootstrap",
               "command": "{run:passport:bootstrap}",
-              "text": "Deploys PassportRegistry, creates the NFT collection, creates the demo product's HCS topic, registers the product and submits its first events. Idempotent \u2014 safe to re-run."
+              "text": "Deploys PassportRegistry, creates the NFT collection, creates the demo product's HCS topic, registers the product and submits its first events. Set PINATA_JWT in packages/hardhat/.env first (a free pinata.cloud key is enough) and it also pins the metadata and a conformity declaration to IPFS for the indexer to verify. Idempotent — safe to re-run."
             },
             {
               "label": "4. Index it",
               "command": "{run:indexer:dev}",
-              "text": "Replays the mirror node into a local SQLite index and reconciles every custody claim against the NFT's real transfer history."
+              "text": "Follows the registry through the mirror node into a local SQLite index, reconciles every custody claim against the NFT's real transfer history, and checks each attached document against its CID. Restart it after any bootstrap."
             },
             {
               "label": "5. Open the passport",
               "command": "{run:next:start}",
               "text": "http://localhost:3000/verify/1 now renders live testnet data, with a HashScan link on every claim."
+            },
+            {
+              "label": "6. Register your own products",
+              "text": "Open http://localhost:3000/issuer and connect a wallet. The bootstrap is setup; the issuer page is the tool. Adding a product type is one JSON file in schemas/categories/."
             }
           ]
         },
@@ -68,7 +72,7 @@
           "title": "When something looks wrong",
           "steps": [
             {
-              "label": "Check every entity and the indexer cursor",
+              "label": "Check every entity against the mirror node, and whether a local index exists",
               "command": "{run:passport:status}"
             }
           ]

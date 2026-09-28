@@ -36,7 +36,7 @@ function line(status: string, label: string, detail: string): void {
   console.log(`${status}${label.padEnd(12)}${detail}`);
 }
 
-/** Reports the indexer's cursor, if it has run and left a SQLite index behind. */
+/** Reports whether the indexer has left a local SQLite index behind, its size and when it last changed. */
 function reportIndexer(): void {
   const dbPath = path.join(REPO_ROOT, "packages", "indexer", "data", "passport.db");
   if (!fs.existsSync(dbPath)) {

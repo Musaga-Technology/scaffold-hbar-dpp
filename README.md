@@ -38,7 +38,7 @@ part of the template rather than an add-on.
 
 | | What you need | What you get |
 | --- | --- | --- |
-| **Look at it** — 30 seconds | nothing | Bundled data, including a passport that **fails** its checks — the case a fresh registry cannot show you |
+| **Look at it** — 30 seconds once installed | nothing | Bundled data, including a passport that **fails** its checks — the case a fresh registry cannot show you |
 | **Run it for real** — 5 commands | a funded [testnet account](https://portal.hedera.com) | Your own registry on Hedera: tokens, topics, documents on IPFS, all verifiable on HashScan |
 
 It is already running on testnet if you would rather see that first:
@@ -79,7 +79,7 @@ registration form, the validation and how the passport renders. See
 
 ---
 
-## Look at it — 30 seconds, no account
+## Look at it — 30 seconds once installed, no account
 
 ```bash
 yarn install
@@ -184,9 +184,37 @@ against the CID, and reports it verified. The links above open through
 
 ## Register your own products
 
-The bootstrap is setup. **The issuer page is the actual tool.**
+The bootstrap is setup. **The issuer page is the actual tool.** It needs three
+things the bootstrap deliberately does not do for you, and the page tells you
+which one is missing before you fill anything in:
 
-Open **http://localhost:3000/issuer** and connect a wallet.
+1. **An operator key in the app.** Registering creates the product's HCS topic
+   from the server, and the bootstrap never copies a key into the app. Use the
+   account the bootstrap printed as `operator` — its key is your deployer key,
+   which `yarn hardhat:account:reveal-pk` prints after asking for the password.
+   Add both to `packages/nextjs/.env.local` and restart `yarn next:start`:
+
+   ```bash
+   HEDERA_OPERATOR_ID=0.0.xxxx
+   HEDERA_OPERATOR_PRIVATE_KEY=0x…      # ECDSA, hex — server-side, never NEXT_PUBLIC_
+   ```
+
+2. **A wallet the registry accepts.** Only the registry's owner — the account
+   you bootstrapped with — and wallets it allow-lists can register. Import that
+   account into MetaMask (the same `reveal-pk` output), or call `setIssuer` for
+   another address from the Debug Contracts page. If MetaMask is on another
+   network, the app offers to switch it to Hedera testnet.
+3. **Optional: `PINATA_JWT` in `packages/nextjs/.env.local` too**, to attach
+   documents from this page. The bootstrap's copy in `packages/hardhat/.env`
+   only covers the bootstrap.
+
+Then open **http://localhost:3000/issuer** and connect.
+
+> **The first visit is slow in dev mode.** `yarn next:start` compiles pages on
+> demand, and the wallet pages pull in RainbowKit and its connectors — about
+> 20,000 modules, one to two minutes on a laptop, once. The public pages compile
+> in seconds. `yarn next:build && yarn next:serve` gives a production server
+> with no waiting.
 
 ![The issuer page, showing the three steps: register it here, record what happens, hand it over](docs/screenshots/issuer.png)
 
@@ -252,11 +280,11 @@ Why it is built this way: [docs/design-notes.md](docs/design-notes.md).
 | --- | --- |
 | Explore offline | Node ≥ 20.18.3. Corepack ships with Node and provides Yarn 3.2.3. |
 | Run on testnet | The same, plus a funded ECDSA account. |
-| Run everything in containers | Docker. No Node, no Yarn, no Solidity toolchain. |
+| Run it in containers | Docker alone — for the demo, or a registry you have already bootstrapped. The bootstrap itself runs on the host. |
 
 `yarn install` pulls about 2.6 GB — Next.js, RainbowKit and the Solidity
-toolchain, mostly inherited from scaffold-hbar. If you only want to *run* the
-template, `docker compose up` needs Docker alone.
+toolchain, mostly inherited from scaffold-hbar. About 7 MB of it is this
+template's own IPFS verification; most of the rest is the wallet connectors.
 
 ## Commands
 
@@ -268,8 +296,10 @@ template, `docker compose up` needs Docker alone.
 | `yarn indexer:dev` | Poll, reconcile, serve the index API |
 | `yarn indexer:replay` | Drop the index and rebuild from sequence 1 |
 | `yarn indexer:verify` | Replay into a temp index and diff it against the live one |
-| `yarn next:start` | Run the app |
-| `yarn lint` · `yarn next:build` · `yarn hardhat:test` · `yarn indexer:test` | The gates CI runs |
+| `yarn next:start` | Run the app in dev mode, compiling pages on demand |
+| `yarn next:build` then `yarn next:serve` | Run a production build — no first-visit compile |
+| `yarn hardhat:account:generate` · `:import` · `:reveal-pk` | Create, import or print the deployer key (encrypted at rest) |
+| `yarn lint` · `yarn next:check-types` · `yarn indexer:check-types` · `yarn hardhat:compile` · `yarn hardhat:test` · `yarn indexer:test` · `yarn next:build` | The gates CI runs, in that order |
 | `yarn hardhat:test:forking` | Optional — runs the contract against the real HTS precompile on a fork |
 
 ## Deploy it
@@ -283,12 +313,10 @@ cloud. Nothing here is tied to a vendor. Fly, Railway, Render and ECS all take
 the same containers; [`fly.toml`](fly.toml) is a worked example for the indexer,
 health check and volume included.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
-
-One-click preview of the **public page only**. Serverless platforms cannot run
-the indexer — it needs a persistent process and a database — so a passport
-deployed this way shows demo data until `INDEX_API_URL` points at an indexer
-hosted somewhere that can run one.
+Serverless platforms can host the app but not the indexer, which needs a
+persistent process and a database. Deploy the app there and point
+`INDEX_API_URL` at an indexer running somewhere that can; without it the app
+shows demo data and says so.
 
 ## Configure it
 
@@ -297,15 +325,16 @@ something real — full table in [docs/configuration.md](docs/configuration.md).
 
 | Variable | Where | For |
 | --- | --- | --- |
-| `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_PRIVATE_KEY` | app, **server-side only** | Creating topics, submitting events |
-| `PINATA_JWT` *or* `ARWEAVE_JWK` | app, server-side only | Storing documents |
-| `INDEX_API_URL` | app | Where to read the index; unset means demo fixtures |
-| `INDEXER_TOPIC_IDS` / `PASSPORT_REGISTRY_ADDRESS` | indexer | What to index |
+| `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_PRIVATE_KEY` | app, **server-side only** | Registering and logging events from `/issuer` |
+| `PINATA_JWT` *or* `ARWEAVE_JWK` | app and bootstrap, server-side only | Storing documents |
+| `INDEX_API_URL` | app | Where to read the index; unset means demo data |
+| `PASSPORT_REGISTRY_ADDRESS` | indexer | Follow the registry, including products registered later |
 | `DATABASE_URL` | indexer | Use Postgres instead of SQLite |
 
 The operator variables deliberately have **no** `NEXT_PUBLIC_` prefix — that
 would inline the key that signs every HCS submission into the browser bundle.
-Leave them unset and the two write routes return 503 with instructions.
+Leave them unset and the issuer pages say so before anything is filled in;
+verifying passports never needs them.
 
 ## Extend it
 
@@ -327,6 +356,11 @@ Leave them unset and the two write routes return 503 with instructions.
 | `HtsCreateFailed(9)` | Token creation fee too low — raise `BOOTSTRAP_COLLECTION_FEE_HBAR` |
 | Passport stuck on `pending` | The indexer has not caught up. Is `yarn indexer:dev` running? |
 | Issuer page says "No registry configured" | Run `yarn passport:bootstrap` first |
+| Issuer page says the app has no operator key | Add `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` to `packages/nextjs/.env.local` — see [Register your own products](#register-your-own-products) |
+| "This wallet cannot register products" | Connect the account you bootstrapped with, or allow-list this one with `setIssuer` |
+| `/issuer` takes a minute or more to load the first time | Dev mode compiling the wallet stack, once. `yarn next:build && yarn next:serve` avoids it |
+| "The indexer is not running" | `INDEX_API_URL` is set and nothing answers. Start `yarn indexer:dev`, or remove it to go back to the demo |
+| A product you just registered is missing | Restart the indexer if it was started before the bootstrap, and check `INDEXER_TOPIC_IDS` is empty |
 | Bootstrap reuses a registry you wanted gone | It prints where the address came from — see [Starting over](#starting-over-with-a-fresh-registry); the deployment artifact is a second place it looks |
 | Anything else | `yarn passport:status` — it checks every entity and needs no key |
 
