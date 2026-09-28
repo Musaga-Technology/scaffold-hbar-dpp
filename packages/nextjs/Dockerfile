@@ -29,6 +29,16 @@ COPY . .
 # The app imports @sh/indexer/events for the shared event model, so the indexer
 # workspace has to be present at build time even though it is a separate image.
 # Standalone output is opt-in; see packages/nextjs/next.config.ts for why.
+#
+# Next inlines NEXT_PUBLIC_ values into the browser bundle at build time, so the
+# ones client components read have to be known here, not at `docker run`.
+# Server-rendered pages read them at runtime and would follow compose anyway;
+# without these, client-side HashScan links stayed on testnet in an image run
+# against mainnet.
+ARG NEXT_PUBLIC_HEDERA_NETWORK=testnet
+ARG NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=
+ENV NEXT_PUBLIC_HEDERA_NETWORK=$NEXT_PUBLIC_HEDERA_NETWORK
+ENV NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=$NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
 RUN corepack enable && BUILD_STANDALONE=true yarn workspace @sh/nextjs build
 
 FROM node:20-slim AS runner

@@ -50,6 +50,11 @@ services:
     build:
       context: .
       dockerfile: packages/nextjs/Dockerfile
+      # Baked into the browser bundle, so they must be known when the image is
+      # built. Change them and rebuild: `docker compose up --build`.
+      args:
+        NEXT_PUBLIC_HEDERA_NETWORK: ${HEDERA_NETWORK:-testnet}
+        NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${WALLET_CONNECT_PROJECT_ID:-}
     depends_on:
       - indexer
     environment:

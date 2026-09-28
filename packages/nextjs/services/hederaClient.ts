@@ -40,6 +40,28 @@ function parseNetwork(raw: string | undefined): HederaNetwork {
 }
 
 /**
+ * The network the operator writes to.
+ *
+ * Follows NEXT_PUBLIC_HEDERA_NETWORK — the setting the bootstrap writes and
+ * every link and read in the app uses. This used to read HEDERA_NETWORK alone,
+ * so pointing the app at mainnet left the writes on testnet: pages showed one
+ * network while topics and events went to another. HEDERA_NETWORK is still
+ * accepted, but disagreeing with the public setting is refused rather than
+ * silently resolved one way or the other.
+ */
+function operatorNetwork(): HederaNetwork {
+  const publicSetting = process.env.NEXT_PUBLIC_HEDERA_NETWORK;
+  const serverSetting = process.env.HEDERA_NETWORK;
+  if (publicSetting && serverSetting && publicSetting.toLowerCase() !== serverSetting.toLowerCase()) {
+    throw new OperatorUnavailableError(
+      `NEXT_PUBLIC_HEDERA_NETWORK is "${publicSetting}" but HEDERA_NETWORK is "${serverSetting}". The app would ` +
+        "show one network and write to the other. Set only NEXT_PUBLIC_HEDERA_NETWORK.",
+    );
+  }
+  return parseNetwork(publicSetting ?? serverSetting);
+}
+
+/**
  * Reports whether an operator is configured.
  *
  * Used to decide whether a write route is available at all, so the UI can
@@ -82,7 +104,7 @@ export function requireOperator(): OperatorConfig {
     );
   }
 
-  return { accountId, privateKey, network: parseNetwork(process.env.HEDERA_NETWORK) };
+  return { accountId, privateKey, network: operatorNetwork() };
 }
 
 /**
