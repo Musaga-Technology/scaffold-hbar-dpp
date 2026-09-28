@@ -153,10 +153,12 @@ addressing. Both mint paths check before spending gas.
 
 ### Configuring it
 
-Set `PINATA_JWT` in `packages/nextjs/.env.local`; a free key is enough for
-testnet. Without it, attaching a document returns `503` with instructions and
-every other part of the template is unaffected — verification, custody,
-reconciliation and the public page all work with no storage configured at all.
+Set `PINATA_JWT` in `packages/nextjs/.env.local` to attach documents from the
+issuer page, and in `packages/hardhat/.env` for the bootstrap to pin its demo
+document and metadata; a free key is enough for testnet. Without it, the issuer
+page says up front that documents cannot be attached, and every other part of
+the template is unaffected — verification, custody, reconciliation and the
+public page all work with no storage configured at all.
 
 ### IPFS or Arweave
 

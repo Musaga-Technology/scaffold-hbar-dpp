@@ -313,10 +313,14 @@ cloud. Nothing here is tied to a vendor. Fly, Railway, Render and ECS all take
 the same containers; [`fly.toml`](fly.toml) is a worked example for the indexer,
 health check and volume included.
 
-Serverless platforms can host the app but not the indexer, which needs a
-persistent process and a database. Deploy the app there and point
-`INDEX_API_URL` at an indexer running somewhere that can; without it the app
-shows demo data and says so.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FMusaga-Technology%2Fscaffold-hbar-dpp&root-directory=packages%2Fnextjs)
+
+A one-click **preview of the public pages** only. With no configuration it
+renders the bundled demo passports, so a first deploy is never broken.
+Serverless platforms in general — this is not specific to Vercel — can host the
+app but not the indexer, which needs a persistent process and a database. Point
+`INDEX_API_URL` at an indexer running somewhere that can, such as the
+containers above.
 
 ## Configure it
 

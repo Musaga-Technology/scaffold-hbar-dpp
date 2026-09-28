@@ -20,13 +20,14 @@ npm create scaffold-hbar@latest my-passports -- \
 
 ## Results
 
-**Scaffold and install measured 21–22 September 2026; suites, build and harness
-re-run 25 September 2026** · **Host:** macOS 13.7, Node v22.19.0, Yarn 3.2.3
+**Last full run 28 September 2026**, scaffolded fresh from GitHub through the
+real CLI · **Host:** macOS 13.7 on Intel, Node v22.19.0, Yarn 3.2.3. The CI
+gates were also replayed under Node 20.20.2, the version CI uses — see below.
 
 | Step | Result |
 | --- | --- |
-| Scaffold from GitHub | clean |
-| `yarn install` | 3m 11s cold, 2m 23s warm cache |
+| Scaffold from GitHub, including install | clean, 10m 47s end to end, dependency install included |
+| `yarn install` alone | 3m 11s cold, 2m 23s warm cache (measured 21 September) |
 | `yarn lint` | clean, all three workspaces |
 | `yarn next:check-types` | clean |
 | `yarn indexer:check-types` | clean |
@@ -36,6 +37,8 @@ re-run 25 September 2026** · **Host:** macOS 13.7, Node v22.19.0, Yarn 3.2.3
 | `yarn indexer:test` | 178 passing |
 | `yarn next:build` | clean |
 | Boot with no `.env` | `/`, `/verify/1`, `/verify/2`, `/issuer`, `/my-passports`, `/api/passport/products` all 200 |
+| First passport after `yarn next:start` | 31 s, dev mode |
+| First visit to `/issuer` in dev mode | 92 s to compile the wallet stack (about 21,500 modules), once; 0.4 s after. Considerably longer when the machine is under load |
 | Demo passport renders | yes — `/verify/2` shows its discrepancy and a document that does not match its attestation |
 | `npx hedera-harness validate` | passed, 0 findings, Tier 2 green on 6 routes |
 
@@ -75,7 +78,32 @@ from mirror node data and matched what was committed on HCS.
 
 Links are in the [README](../README.md#proof-it-runs-on-hedera-testnet).
 
+## On Node 20
+
+The brief sets the floor at Node 20.18.3, and CI and both Dockerfiles run Node
+20. Until 28 September the ci workflow was failing there while every local run
+passed on Node 22: `better-sqlite3` 13 requires Node 22, so the four indexer
+test files that open a store crashed with "Worker exited unexpectedly". It is
+now pinned to 12.x, which supports Node 20 through 26.
+
+Replayed in a clean checkout, with the CI workflow's steps in its order:
+
+| Node | Result |
+| --- | --- |
+| 20.20.2 — what `actions/setup-node` resolves `20` to | install, lint, both type checks, compile, 93 hardhat, 178 indexer, `next:build` — all pass |
+| 20.18.3 — the floor | SQLite driver rebuilt for it and loads; 178 indexer tests pass |
+| 22.19.0 — this machine | everything above |
+
 ## Known rough edges
+
+- **The first wallet page is slow to compile in dev mode.** `/issuer` and
+  `/my-passports` pull in RainbowKit and wagmi's connectors, which bring Base
+  Account, Coinbase's SDK and Reown AppKit with them. That is inherited from
+  scaffold-hbar and is not something this template can trim without replacing
+  its wallet layer. Two fixes were measured and rejected: dropping the
+  inherited `snapshot.managedPaths` override was no faster, and Turbopack
+  cannot parse `globals.css`. `yarn next:build && yarn next:serve` avoids the
+  wait entirely.
 
 - **`packages/hardhat/.env` fails `hedera-harness validate`.** Expected and
   local-only. The file appears once you run `account:generate` or

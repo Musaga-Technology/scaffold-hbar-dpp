@@ -50,16 +50,24 @@ yarn install
 yarn lint                      # all three workspaces
 yarn format
 yarn next:check-types
+yarn indexer:check-types
 yarn next:build
 yarn hardhat:compile
 yarn hardhat:test              # MockHTS unit tests, no network
 yarn hardhat:test:forking      # optional, against the real 0x167 on a fork
 yarn indexer:test
 yarn passport:bootstrap        # deploy + collection + topic + demo product
+yarn passport:new-product      # another demo product on the same registry
 yarn passport:status           # diagnostics, no key needed
 ```
 
-The harness runs exactly these — see `.harness/validators/yarn.json`. Run them before claiming an increment is done.
+The harness runs the offline gates — install, lint, `next:check-types`, `hardhat:compile`, `hardhat:test`, `indexer:test` and `next:build`; see `.harness/validators/yarn.json`. CI runs the same plus `indexer:check-types`. Run them before claiming an increment is done. The `passport:*` commands touch Hedera testnet and are never run by either.
+
+**Node 20.18.3 is the floor**, as `template.json` declares, and CI and both
+Dockerfiles run Node 20. `better-sqlite3` is pinned to 12.x because 13.x
+requires Node 22: upgrading it crashed every indexer test that opens a store,
+on CI and for anyone on Node 20, while passing locally on Node 22. Do not bump
+it without raising the floor everywhere at once.
 
 ## How to extend
 
