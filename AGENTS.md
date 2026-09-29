@@ -133,6 +133,16 @@ Use the scaffold hooks from `packages/nextjs/hooks/scaffold-hbar`:
 
 DaisyUI classes for layout. Imports use the `~~/` alias for `packages/nextjs/*`.
 
+Wallet and write rules, each learned from a real failure on testnet:
+
+- **Keep MetaMask on the injected connector** (`metaMaskExtensionWallet` in `services/web3/wagmiConnectors.tsx`). RainbowKit's own `metaMaskWallet` routes the extension through the MetaMask SDK, whose session restore hung: the header showed a connected wallet, the form waited forever, and writes failed with "Cannot access account".
+- **Gate on the address, not the status.** `WalletGate` renders once wagmi knows the address; `status` can sit at `"reconnecting"` indefinitely.
+- **Every write that touches HTS sets `gas` explicitly** — `registerProduct` 1,500,000, `transferCustody` and `airdropPassport` 1,000,000. A MetaMask estimate for `registerProduct` ran out at 366,248 with `INSUFFICIENT_GAS`; it needs about 392k. Hedera charges for gas used, so headroom is free.
+- **Hand-over has two contract paths.** A treasury-held serial can only leave through `airdropPassport` — `transferCustody` must be called by the holder, and for a new passport that is the registry itself. The manage page reads custody fresh from the mirror node on the server (`readCustody`) and picks the function.
+- **Custody claims are written in `0.0.x`.** The events route resolves `0x` addresses before submitting a `custody.transferred` event, because the reconciler compares against the mirror node literally; a `0x` claim would never match and every hand-over would show as a discrepancy.
+- **Registration reuses its pending topic.** The topic is created before the mint, so a failed attempt used to orphan one. The server reuses a remembered topic only when its memo is `passport:{tokenId}:pending`, it has no messages, and its submit key is the operator's.
+- **The browser still never reads HCS** — invariant 2 applies to new features too. Put any topic read in a server route.
+
 ## Hedera value handling
 
 | Context | Unit | 1 HBAR |

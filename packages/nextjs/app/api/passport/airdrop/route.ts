@@ -1,6 +1,8 @@
 import { fail, guard, ok } from "../_lib/responses";
 import { AccountId, TokenAirdropTransaction, TokenId } from "@hiero-ledger/sdk";
+import { resolveAccountId } from "~~/services/accounts";
 import { OperatorUnavailableError, createOperatorClient } from "~~/services/hederaClient";
+import { readCustody } from "~~/services/registry";
 
 /**
  * Sends a passport to a consumer using HIP-904.
@@ -29,30 +31,6 @@ interface AirdropRequest {
   tokenId?: unknown;
   serial?: unknown;
   receiver?: unknown;
-}
-
-/** Accepts `0.0.x`; an EVM address is resolved through the mirror node. */
-async function resolveAccountId(receiver: string, network: string): Promise<{ accountId?: string; error?: string }> {
-  if (/^\d+\.\d+\.\d+$/.test(receiver)) return { accountId: receiver };
-
-  if (!/^0x[0-9a-fA-F]{40}$/.test(receiver)) {
-    return { error: `"${receiver}" is neither a Hedera account id (0.0.x) nor an EVM address.` };
-  }
-
-  const response = await fetch(`https://${network}.mirrornode.hedera.com/api/v1/accounts/${receiver}`);
-  if (response.status === 404) {
-    return {
-      error:
-        `No Hedera account exists for ${receiver} yet. An EVM address only becomes an account once it has ` +
-        "been funded or received a transfer; ask the recipient for their 0.0.x id instead.",
-    };
-  }
-  if (!response.ok) {
-    return { error: `Could not resolve ${receiver} through the mirror node: ${response.status}.` };
-  }
-
-  const body = (await response.json()) as { account?: string };
-  return body.account ? { accountId: body.account } : { error: `Mirror node returned no account for ${receiver}.` };
 }
 
 export async function POST(request: Request) {
@@ -90,6 +68,25 @@ export async function POST(request: Request) {
     try {
       const resolved = await resolveAccountId(body.receiver as string, operator.network);
       if (!resolved.accountId) return fail("invalid_request", resolved.error!);
+
+      // A HIP-904 airdrop is sent from the operator's account, so the operator
+      // must hold the passport. A new one sits in the registry's treasury, which
+      // the operator cannot sign for; attempting it anyway only produced a raw
+      // Hedera error. Say what to do instead.
+      const custody = await readCustody(body.tokenId as string, body.serial as number);
+      if (custody.holder && custody.holder !== operator.accountId) {
+        const account = await fetch(
+          `https://${operator.network}.mirrornode.hedera.com/api/v1/accounts/${operator.accountId}`,
+        ).catch(() => undefined);
+        const evm = account?.ok ? ((await account.json()) as { evm_address?: string }).evm_address : undefined;
+        return fail(
+          "invalid_request",
+          `Serial ${body.serial} is held by ${custody.holder}${custody.heldByRegistry ? ", the registry's treasury" : ""}. ` +
+            `This airdrop is sent from the operator account ${operator.accountId}, so it has to hold the passport first: ` +
+            `hand it over to ${evm ?? operator.accountId} with the transfer form, then send it here. ` +
+            "Or hand it straight to the buyer with the transfer form, if their account accepts tokens automatically.",
+        );
+      }
 
       const tokenId = TokenId.fromString(body.tokenId as string);
       const sender = AccountId.fromString(operator.accountId);

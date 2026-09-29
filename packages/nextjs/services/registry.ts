@@ -14,6 +14,7 @@
 import "server-only";
 import { type Address, createPublicClient, http } from "viem";
 import { hederaTestnet } from "viem/chains";
+import { publicNetwork } from "~~/services/hederaClient";
 
 /** The reads this server needs. */
 const REGISTRY_ABI = [
@@ -109,5 +110,53 @@ export async function checkEventLogger(serial: number, actor: string): Promise<L
       enforced: false,
       reason: `Could not read the allow-list from the registry (${detail}), so it was not enforced.`,
     };
+  }
+}
+
+/** Where a passport is now, as far as the ledger says. */
+export interface Custody {
+  /** Current holder, `0.0.x`; undefined when it could not be read. */
+  holder?: string;
+  /**
+   * True while the registry itself still holds the serial — every passport
+   * does until its first hand-over. Undefined when either read failed, so the
+   * caller can refuse to guess.
+   */
+  heldByRegistry?: boolean;
+}
+
+let registryAccountId: string | undefined;
+
+/**
+ * Reads a passport's current holder from the mirror node.
+ *
+ * The hand-over form needs this to call the right function. A new passport sits
+ * in the registry's treasury, and only `airdropPassport` can move it out:
+ * `transferCustody` must be called by the current holder, which for a
+ * treasury-held serial is the registry contract itself — no wallet can be that
+ * caller. Read fresh on the server rather than from the index, which lags a few
+ * seconds behind a hand-over that just happened.
+ *
+ * @param tokenId Collection id, `0.0.x`.
+ * @param serial Serial number.
+ */
+export async function readCustody(tokenId: string, serial: number): Promise<Custody> {
+  const registryAddress = process.env.NEXT_PUBLIC_PASSPORT_REGISTRY_ADDRESS;
+  const mirror = `https://${publicNetwork()}.mirrornode.hedera.com/api/v1`;
+
+  try {
+    const nft = await fetch(`${mirror}/tokens/${tokenId}/nfts/${serial}`, { cache: "no-store" });
+    if (!nft.ok) return {};
+    const holder = ((await nft.json()) as { account_id?: string }).account_id ?? undefined;
+    if (!holder || !registryAddress) return { holder };
+
+    if (!registryAccountId) {
+      const contract = await fetch(`${mirror}/contracts/${registryAddress}`);
+      if (!contract.ok) return { holder };
+      registryAccountId = ((await contract.json()) as { contract_id?: string }).contract_id ?? undefined;
+    }
+    return registryAccountId ? { holder, heldByRegistry: holder === registryAccountId } : { holder };
+  } catch {
+    return {};
   }
 }

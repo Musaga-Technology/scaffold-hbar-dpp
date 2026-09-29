@@ -9,7 +9,8 @@ import {
   validateEvent,
   validateLogEventRequest,
 } from "~~/lib/events";
-import { OperatorUnavailableError, createOperatorClient } from "~~/services/hederaClient";
+import { resolveAccountId } from "~~/services/accounts";
+import { OperatorUnavailableError, createOperatorClient, publicNetwork } from "~~/services/hederaClient";
 import { checkEventLogger } from "~~/services/registry";
 
 /** Request body for appending a lifecycle event to a product's topic. */
@@ -59,6 +60,28 @@ export async function POST(request: Request) {
     }
     if (issues.length > 0) {
       return fail("invalid_request", "Cannot build an event from this request.", issues);
+    }
+
+    // A custody claim is only checkable if it is written the way the ledger
+    // reports custody. The mirror node names accounts 0.0.x, and the reconciler
+    // compares literally, so a claim naming a 0x EVM address could never match
+    // the transfer it describes — every hand-over made from the UI surfaced as a
+    // discrepancy. Resolve both ends before the claim is hashed and submitted,
+    // and refuse rather than write a claim that could never be verified.
+    if (body.type === "custody.transferred" && body.payload && typeof body.payload === "object") {
+      const payload = { ...(body.payload as Record<string, unknown>) };
+      for (const side of ["from", "to"] as const) {
+        const value = payload[side];
+        if (typeof value !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(value)) continue;
+        const resolved = await resolveAccountId(value, publicNetwork());
+        if (!resolved.accountId) {
+          return fail("invalid_request", `Cannot record this hand-over: ${resolved.error}`, [
+            { field: `payload.${side}`, message: "must resolve to a Hedera account" },
+          ]);
+        }
+        payload[side] = resolved.accountId;
+      }
+      body.payload = payload;
     }
 
     let event;

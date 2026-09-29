@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { OperatorNotice, useOperatorConfigured } from "./OperatorNotice";
 import { SendToConsumer } from "./SendToConsumer";
 import { isAddress } from "viem";
@@ -52,13 +53,17 @@ export const ManagePassport = ({
   topicId,
   category,
   currentHolder,
+  heldByRegistry,
 }: {
   serial: number;
   tokenId: string;
   topicId: string;
   category: string | null;
   currentHolder: string | null;
+  /** True while the registry's treasury still holds the serial; undefined if unknown. */
+  heldByRegistry?: boolean;
 }) => {
+  const router = useRouter();
   const { address } = useAccount();
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "PassportRegistry" });
 
@@ -170,11 +175,18 @@ export const ManagePassport = ({
 
     setTransferring(true);
     try {
-      // Explicit, like registration: this moves the NFT through the HTS system
-      // contract, which wallet gas estimation under-reports. Hedera charges for
-      // gas used, so the headroom costs nothing.
+      // Two functions, because the contract has two cases. A new passport sits
+      // in the registry's treasury, and transferCustody must be called by the
+      // current holder — which would be the registry itself, so no wallet could
+      // ever move a new passport with it. airdropPassport is the way out of the
+      // treasury, callable by the owner or the product's issuer; after that, the
+      // holder uses transferCustody.
+      //
+      // Explicit gas, like registration: both move the NFT through the HTS
+      // system contract, which wallet estimation under-reports. Hedera charges
+      // for gas used, so the headroom costs nothing.
       const hash = await writeContractAsync({
-        functionName: "transferCustody",
+        functionName: heldByRegistry ? "airdropPassport" : "transferCustody",
         args: [BigInt(serial), to],
         gas: 1_000_000n,
       });
@@ -198,6 +210,9 @@ export const ManagePassport = ({
 
       notification.success(`Custody of serial ${serial} transferred.`);
       setRecipient("");
+      // The holder just changed, and with it which function the next hand-over
+      // needs. Re-read it rather than trusting what the page loaded with.
+      router.refresh();
     } catch (error) {
       notification.error(error instanceof Error ? error.message : "Transfer failed.");
     } finally {
@@ -320,7 +335,10 @@ export const ManagePassport = ({
         {currentHolder && (
           <div className="mb-4 rounded-lg bg-base-200 p-3 text-sm">
             <span className="text-base-content/60">Current holder</span>
-            <div className="font-mono break-all">{currentHolder}</div>
+            <div className="font-mono break-all">
+              {currentHolder}
+              {heldByRegistry ? " — the registry, until its first hand-over" : ""}
+            </div>
           </div>
         )}
 
@@ -344,7 +362,9 @@ export const ManagePassport = ({
         </button>
 
         <p className="mt-4 mb-0 text-xs text-base-content/60">
-          Only the current holder can transfer. The contract enforces this; the wallet you connect must be the holder.
+          {heldByRegistry
+            ? "First hand-over: the registry releases it, which the registry owner or this product's issuer can do. The recipient's account must accept tokens automatically — most MetaMask and portal accounts do — or already be associated with the collection."
+            : "Only the current holder can transfer. The contract enforces this; the wallet you connect must be the holder."}
         </p>
       </form>
 

@@ -223,6 +223,60 @@ file** in `schemas/categories/` — battery, textile and generic ship as example
 Adding food, pharmaceuticals or machine parts means adding a file, not writing
 code.
 
+If a registration fails partway — you reject the wallet prompt, or the
+transaction reverts — just submit again. The product's topic is created before
+the mint, and a retry reuses it rather than leaving an unused one behind.
+
+### Logging what happens
+
+On `/issuer/[serial]`, **Log a lifecycle event** appends one entry to the
+product's history. The event types come from its category file; each asks for a
+few details:
+
+| Event | Details |
+| --- | --- |
+| `product.shipped` | from, to, carrier, waybill |
+| `product.inspected` | result (pass, fail, conditional), inspector, note |
+| `product.repaired` | component, note |
+| `product.recycled` | facility, note |
+
+Any event can carry a document. It is pinned to IPFS and the event records its
+CID and sha256 — never the file itself — and the indexer then fetches it back
+and checks it against the CID, so the passport shows it as verified.
+
+Worth knowing before your first one:
+
+- **Events are permanent.** HCS is append-only: a mistake cannot be edited or
+  deleted. Log a correcting event instead — the correction is part of the record.
+- **The server submits it**, using the operator key, after checking the
+  schema, the 1024-byte limit, and that your wallet may log events for this
+  serial (the registry's `setEventLogger` allow-list; the owner and the
+  product's issuer always may).
+- **It appears on the passport within seconds**, once the indexer has read it.
+  The page reads the index, never HCS directly, so keep `yarn indexer:dev`
+  running.
+
+### Handing it over
+
+**Transfer custody** moves the NFT first and records the hand-over second, so
+the history never claims a transfer the ledger did not make. The indexer then
+checks the claim against the actual NFT transfer.
+
+- **A new passport is held by the registry** until its first hand-over. The
+  page detects this and releases it through the registry's `airdropPassport`,
+  which the owner or the product's issuer can call. The recipient's account
+  must accept tokens automatically — most MetaMask and portal accounts do — or
+  already be associated with the collection.
+- **After that, only the current holder can transfer it**, through
+  `transferCustody`, with their own wallet.
+
+**Send to the buyer** is a HIP-904 airdrop for a buyer whose account does not
+accept tokens automatically: it either delivers, or parks the passport for them
+to claim, and the page says which. It is sent from the operator's account, so
+the operator must hold the passport first — hand it to the operator's address
+with Transfer custody, then send. The page explains this if you try it too
+early.
+
 ## How it works, briefly
 
 ```
@@ -358,8 +412,12 @@ it follows the new registry.
 | `HtsCreateFailed(9)` | Token creation fee too low — raise `BOOTSTRAP_COLLECTION_FEE_HBAR` |
 | Passport stuck on `pending` | The indexer has not caught up. Is `yarn indexer:dev` running? |
 | Issuer page says "No registry configured" | Run `yarn passport:bootstrap` first |
-| Issuer page says the app has no operator key | Add `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_PRIVATE_KEY` to `packages/nextjs/.env.local` — see [Register your own products](#register-your-own-products) |
+| Issuer page says the app cannot write to Hedera yet | It names the variable at fault. `HEDERA_OPERATOR_ID` takes the `0.0.x` account id, not the `0x` address — see [Register your own products](#register-your-own-products) |
 | "This wallet cannot register products" | Connect the account you bootstrapped with, or allow-list this one with `setIssuer` |
+| The wallet shows connected but the form says "Reconnecting…", or submitting says "Cannot access account" | A saved session from before MetaMask used its injected provider here. Disconnect from the wallet menu and connect again, once |
+| A transaction fails with `INSUFFICIENT_GAS` | Calls into the token service need more gas than wallets estimate. The issuer forms set it explicitly; if you add your own writes, do the same |
+| "Send to the buyer" says the passport is held by someone else | That airdrop is sent from the operator's account. Hand the passport to the operator's address with Transfer custody first — the message gives the address |
+| Transfer custody reverts with `NotHolder` | Only the current holder can transfer after the first hand-over. Connect that wallet |
 | `/issuer` takes a minute or more to load the first time | Dev mode compiling the wallet stack, once. `yarn next:build && yarn next:serve` avoids it |
 | "The indexer is not running" | `INDEX_API_URL` is set and nothing answers. Start `yarn indexer:dev`, or remove it to go back to the demo |
 | A product you just registered is missing | Restart the indexer if it was started before the bootstrap, and check `INDEXER_TOPIC_IDS` is empty |

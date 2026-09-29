@@ -285,8 +285,31 @@ account. `/my-passports` shows what is waiting and links each one to its
 passport page so it can be inspected *before* being accepted — but the claim
 itself belongs to HashPack, Blade, or whatever the consumer uses.
 
-There is a second path on the contract. `airdropPassport` performs a direct
-`transferNFT` from the registry treasury, which is simpler but requires the
-receiver to already be associated. It exists as the documented fallback for
-networks where HIP-904 is unavailable.
+### Who can move a passport, and from where
+
+This section used to present the HIP-904 route as the way a passport reaches its
+buyer, with the contract's `airdropPassport` as a fallback. Trying it on testnet
+with a freshly registered passport showed that is backwards, because of where a
+new passport lives: **in the registry's treasury**, since the registry mints it.
+
+| Path | Who calls it | Works when |
+| --- | --- | --- |
+| `airdropPassport` on the registry | the owner or the product's issuer, from their wallet | the registry holds the serial — the **only** way out of the treasury. The receiver must accept tokens automatically (most MetaMask and portal accounts have unlimited automatic associations) or already be associated. |
+| `transferCustody` on the registry | the current holder | someone other than the registry holds it. It cannot move a new passport: its caller must be the holder, and for a new passport that is the registry contract itself. |
+| HIP-904 route, `POST /api/passport/airdrop` | the server, as the operator | the **operator** holds the serial, because it is sent from the operator's account. Its value is the buyer who cannot accept tokens automatically: they get a pending airdrop to claim instead of a failed transfer. |
+
+So the complete journey to a buyer without automatic associations is: release
+the passport from the registry to the operator's own address, then airdrop it.
+The manage page reads who holds the serial, fresh from the mirror node on the
+server, and calls the right contract function; the airdrop route checks the
+holder first and says exactly this, with the operator's address, instead of
+failing with a raw Hedera status.
+
+**A hand-over is recorded in the ledger's own terms.** The claim goes to HCS
+only after the NFT has moved, and the events route rewrites any `0x` address in
+it to the `0.0.x` id the mirror node uses, before hashing. The reconciler
+compares claims against transfers literally; a claim naming an EVM address
+would never match the transfer it describes, and every genuine hand-over would
+have been reported as a discrepancy — the one accusation this template exists
+to make, made falsely.
 

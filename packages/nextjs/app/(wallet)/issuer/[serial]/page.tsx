@@ -6,6 +6,7 @@ import { StatusBadge } from "~~/components/passport/StatusBadge";
 import { Timeline } from "~~/components/passport/Timeline";
 import { WalletGate } from "~~/components/passport/WalletGate";
 import { getPassport, isDemoMode } from "~~/lib/indexClient";
+import { readCustody } from "~~/services/registry";
 
 /** Manage one passport: log events, transfer custody, review history. */
 export const dynamic = "force-dynamic";
@@ -19,6 +20,9 @@ const ManagePage = async ({ params }: { params: Promise<{ serial: string }> }) =
   if (!passport) notFound();
 
   const { product, events } = passport;
+  // Fresh from the ledger, not the index: the hand-over form must call a
+  // different contract function while the registry still holds the passport.
+  const custody = await readCustody(product.tokenId, product.serial);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10">
@@ -49,7 +53,8 @@ const ManagePage = async ({ params }: { params: Promise<{ serial: string }> }) =
             tokenId={product.tokenId}
             topicId={product.topicId}
             category={product.category}
-            currentHolder={product.currentHolder}
+            currentHolder={custody.holder ?? product.currentHolder}
+            heldByRegistry={custody.heldByRegistry}
           />
         </WalletGate>
       </section>
