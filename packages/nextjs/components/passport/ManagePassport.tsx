@@ -170,7 +170,14 @@ export const ManagePassport = ({
 
     setTransferring(true);
     try {
-      const hash = await writeContractAsync({ functionName: "transferCustody", args: [BigInt(serial), to] });
+      // Explicit, like registration: this moves the NFT through the HTS system
+      // contract, which wallet gas estimation under-reports. Hedera charges for
+      // gas used, so the headroom costs nothing.
+      const hash = await writeContractAsync({
+        functionName: "transferCustody",
+        args: [BigInt(serial), to],
+        gas: 1_000_000n,
+      });
       if (!hash) return;
 
       // The custody claim is recorded only after the transfer actually

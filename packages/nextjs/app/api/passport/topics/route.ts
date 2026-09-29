@@ -6,6 +6,42 @@ import { OperatorUnavailableError, createOperatorClient, operatorProblems } from
 interface CreateTopicRequest {
   tokenId?: unknown;
   serial?: unknown;
+  /** A topic left by an earlier attempt that never finished, to reuse if safe. */
+  reuse?: unknown;
+}
+
+/**
+ * Whether a topic from a failed registration can be handed out again.
+ *
+ * Registration creates the topic before the mint, because the mint takes its id
+ * as an argument. Every attempt that failed after that — a rejected wallet
+ * prompt, a reverted transaction — used to leave a topic behind; five in one
+ * afternoon of testing. Reuse is allowed only when all three hold: the memo
+ * marks it as this collection's pending topic, it has no messages (a completed
+ * registration always writes its first event), and its submit key is this
+ * operator's, so events can still be written to it. Anything uncertain means a
+ * fresh topic — binding two products to one history would be far worse than a
+ * spare topic.
+ *
+ * Read on the server, never in the browser, which reads HCS only through the
+ * index.
+ */
+async function isReusable(topicId: string, tokenId: string, operatorPublicKey: string, network: string) {
+  const mirror = `https://${network}.mirrornode.hedera.com/api/v1/topics/${topicId}`;
+  try {
+    const [infoResponse, messagesResponse] = await Promise.all([fetch(mirror), fetch(`${mirror}/messages?limit=1`)]);
+    if (!infoResponse.ok || !messagesResponse.ok) return false;
+    const info = (await infoResponse.json()) as { memo?: string; submit_key?: { key?: string } | null };
+    const messages = (await messagesResponse.json()) as { messages?: unknown[] };
+    return (
+      info.memo === `passport:${tokenId}:pending` &&
+      Array.isArray(messages.messages) &&
+      messages.messages.length === 0 &&
+      info.submit_key?.key?.toLowerCase() === operatorPublicKey.toLowerCase()
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -54,6 +90,9 @@ export async function POST(request: Request) {
     if (body.serial !== undefined && (!Number.isInteger(body.serial) || (body.serial as number) < 1)) {
       issues.push({ field: "serial", message: "must be a positive integer when present" });
     }
+    if (body.reuse !== undefined && (typeof body.reuse !== "string" || !/^\d+\.\d+\.\d+$/.test(body.reuse))) {
+      issues.push({ field: "reuse", message: "must look like 0.0.x when present" });
+    }
     if (issues.length > 0) {
       return fail("invalid_request", "Cannot create a topic from this request.", issues);
     }
@@ -70,6 +109,19 @@ export async function POST(request: Request) {
     }
 
     try {
+      if (
+        typeof body.reuse === "string" &&
+        body.serial === undefined &&
+        (await isReusable(
+          body.reuse,
+          body.tokenId as string,
+          operator.privateKey.publicKey.toStringRaw(),
+          operator.network,
+        ))
+      ) {
+        return ok({ topicId: body.reuse, network: operator.network, reused: true });
+      }
+
       const receipt = await (
         await new TopicCreateTransaction()
           .setTopicMemo(`passport:${body.tokenId}:${body.serial ?? "pending"}`)
@@ -82,7 +134,7 @@ export async function POST(request: Request) {
         return fail("internal", "Topic creation succeeded but returned no topic id.");
       }
 
-      return ok({ topicId, network: operator.network }, 201);
+      return ok({ topicId, network: operator.network, reused: false }, 201);
     } finally {
       // A client holds gRPC connections; leaking them exhausts sockets.
       client.close();

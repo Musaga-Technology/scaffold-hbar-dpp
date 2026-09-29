@@ -48,6 +48,36 @@ interface Registered {
  * to mint has spent real HBAR, and saying so plainly is better than a generic
  * error that leaves an orphaned topic unexplained.
  */
+/**
+ * Gas for registerProduct. It mints through the HTS system contract, and wallet
+ * estimation under-reports that: a MetaMask estimate of 366,248 ran out with
+ * INSUFFICIENT_GAS, while the bootstrap's registrations used 392k and 408k
+ * under this limit. Hedera charged those about 0.43 HBAR each — what they used,
+ * not what the limit allowed — so headroom costs nothing, and running out burns
+ * the fee anyway.
+ */
+const REGISTER_GAS = 1_500_000n;
+
+/** Where a topic created for a registration that has not completed is kept. */
+const pendingTopicKey = (tokenId: string) => `passport:pending-topic:${tokenId}`;
+
+function readPendingTopic(tokenId: string): string | undefined {
+  try {
+    return sessionStorage.getItem(pendingTopicKey(tokenId)) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writePendingTopic(tokenId: string, topicId: string | undefined): void {
+  try {
+    if (topicId) sessionStorage.setItem(pendingTopicKey(tokenId), topicId);
+    else sessionStorage.removeItem(pendingTopicKey(tokenId));
+  } catch {
+    // Storage unavailable: a retry creates a fresh topic, as before.
+  }
+}
+
 export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
   const { address } = useAccount();
   const publicClient = usePublicClient();
@@ -96,12 +126,15 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
     const payload = toPayload(category, values);
 
     try {
-      // 1. The topic has to exist before the mint that references it.
-      setBusy("Creating the product's HCS topic…");
+      // 1. The topic has to exist before the mint that references it. A topic
+      //    left by an attempt that failed afterwards — a rejected prompt, a
+      //    reverted transaction — is offered back to the server, which reuses
+      //    it only if nothing has claimed it.
+      setBusy("Preparing the product's HCS topic…");
       const topicResponse = await fetch("/api/passport/topics", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tokenId }),
+        body: JSON.stringify({ tokenId, reuse: readPendingTopic(tokenId) }),
       });
       const topicBody = await topicResponse.json();
       if (!topicResponse.ok) {
@@ -109,6 +142,7 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
         return;
       }
       const topicId: string = topicBody.topicId;
+      writePendingTopic(tokenId, topicId);
 
       // 2. Pin the HIP-412 metadata, so the token's pointer does not depend on
       //    this app staying online. Falls back to an app URL when no storage
@@ -149,11 +183,22 @@ export const RegisterProductForm = ({ tokenId }: { tokenId: string }) => {
       const hash = await writeContractAsync({
         functionName: "registerProduct",
         args: [toHex(toBytes(metadataPointer)), productHash, topicId],
+        gas: REGISTER_GAS,
       });
       if (!hash) return;
 
       setBusy("Reading the minted serial…");
       const receipt = await publicClient?.waitForTransactionReceipt({ hash });
+      if (receipt?.status === "reverted") {
+        // Keep the pending topic: nothing claimed it, and the retry reuses it.
+        notification.error(
+          "The registration transaction was included but reverted, so no serial was minted. " +
+            "Try again — the topic already created will be reused.",
+        );
+        return;
+      }
+      // Minted: this topic now belongs to that serial and must never be reused.
+      writePendingTopic(tokenId, undefined);
       let serial: number | undefined;
       for (const log of receipt?.logs ?? []) {
         try {
