@@ -79,6 +79,18 @@ registration form, the validation and how the passport renders. See
 
 ---
 
+## What you need installed
+
+| Path | Requirement |
+| --- | --- |
+| Explore offline | Node ≥ 20.18.3. Corepack ships with Node and provides Yarn 3.2.3. |
+| Run on testnet | The same, plus a funded ECDSA account. |
+| Run it in containers | Docker alone — for the demo, or a registry you have already bootstrapped. The bootstrap itself runs on the host. |
+
+`yarn install` pulls about 2.6 GB — Next.js, RainbowKit and the Solidity
+toolchain, mostly inherited from scaffold-hbar. About 7 MB of it is this
+template's own IPFS verification; most of the rest is the wallet connectors.
+
 ## Look at it — 30 seconds once installed, no account
 
 ```bash
@@ -108,6 +120,14 @@ links and all. [See the whole demo passport](docs/screenshots/verify-discrepancy
 You need **Node ≥ 20.18.3** and a funded **ECDSA** Hedera account. The portal
 offers ECDSA and ED25519; only ECDSA works here.
 
+**Optional, but decide before you bootstrap:** put `PINATA_JWT` in
+`packages/hardhat/.env` (a free key from [pinata.cloud](https://pinata.cloud) is
+enough; the file exists once you have run `account:generate` or
+`account:import`). The bootstrap then pins the token metadata and a conformity
+declaration to IPFS and attaches the declaration to the inspection event for
+the indexer to verify. Without it everything else still runs, just with no
+document on the passport.
+
 ```bash
 yarn install
 yarn hardhat:account:generate     # or account:import if you already have a key
@@ -117,41 +137,13 @@ yarn indexer:dev                  # reads the mirror node, checks every claim
 yarn next:start                   # http://localhost:3000/verify/1
 ```
 
-Set `PINATA_JWT` in `packages/hardhat/.env` first (a free key from
-[pinata.cloud](https://pinata.cloud) is enough) and the bootstrap also pins the
-token metadata and a conformity declaration to IPFS, then attaches the
-declaration to the inspection event for the indexer to verify. Without it,
-everything else still runs.
+> **It registers a product for you.** When the bootstrap finishes you already own
+> a live passport: serial 1, with a topic carrying its first three lifecycle
+> events. `/verify/1` is now that product, not the demo.
 
 `passport:bootstrap` is idempotent — if it fails halfway, fix the cause and run
 it again. Finished steps are skipped, not paid for twice. If anything looks
 wrong, `yarn passport:status` checks every entity against the mirror node.
-
-### Starting over with a fresh registry
-
-The bootstrap records what it has already done, so a second run reuses it. To
-deploy a brand-new registry — a clean demo, a different account, a fresh
-recording — remove both of these:
-
-```bash
-rm packages/hardhat/passport.state.json          # what bootstrap recorded
-rm -rf packages/hardhat/deployments/hederaTestnet # the deployment artifact it falls back to
-rm -rf packages/indexer/data                      # optional: forget the old products too
-```
-
-Both are gitignored and local. **Removing them deletes nothing on Hedera** —
-the old registry, collection, serials and topics stay on the ledger forever,
-and their passports keep verifying for anyone holding the links. You are only
-forgetting them locally.
-
-The next `yarn passport:bootstrap` deploys a new registry, creates a new
-collection, and rewrites the registry address in both `.env.local` files. It
-costs the full setup again, around 25 HBAR. Restart the indexer afterwards so
-it follows the new registry.
-
-> **It registers a product for you.** When the bootstrap finishes you already own
-> a live passport: serial 1, with a topic carrying its first three lifecycle
-> events. `/verify/1` is now that product, not the demo.
 
 ## Proof it runs on Hedera testnet
 
@@ -274,18 +266,6 @@ from scratch and diffing.
 
 Why it is built this way: [docs/design-notes.md](docs/design-notes.md).
 
-## What you need installed
-
-| Path | Requirement |
-| --- | --- |
-| Explore offline | Node ≥ 20.18.3. Corepack ships with Node and provides Yarn 3.2.3. |
-| Run on testnet | The same, plus a funded ECDSA account. |
-| Run it in containers | Docker alone — for the demo, or a registry you have already bootstrapped. The bootstrap itself runs on the host. |
-
-`yarn install` pulls about 2.6 GB — Next.js, RainbowKit and the Solidity
-toolchain, mostly inherited from scaffold-hbar. About 7 MB of it is this
-template's own IPFS verification; most of the rest is the wallet connectors.
-
 ## Commands
 
 | Command | What it does |
@@ -347,6 +327,28 @@ verifying passports never needs them.
 | Swap SQLite for Postgres | set `DATABASE_URL` | none |
 
 `AGENTS.md` is the briefing for coding agents working in this repo.
+
+## Starting over with a fresh registry
+
+The bootstrap records what it has already done, so a second run reuses it. To
+deploy a brand-new registry — a clean demo, a different account, a fresh
+recording — remove both of these:
+
+```bash
+rm packages/hardhat/passport.state.json          # what bootstrap recorded
+rm -rf packages/hardhat/deployments/hederaTestnet # the deployment artifact it falls back to
+rm -rf packages/indexer/data                      # optional: forget the old products too
+```
+
+Both are gitignored and local. **Removing them deletes nothing on Hedera** —
+the old registry, collection, serials and topics stay on the ledger forever,
+and their passports keep verifying for anyone holding the links. You are only
+forgetting them locally.
+
+The next `yarn passport:bootstrap` deploys a new registry, creates a new
+collection, and rewrites the registry address in both `.env.local` files. It
+costs the full setup again, around 25 HBAR. Restart the indexer afterwards so
+it follows the new registry.
 
 ## Troubleshooting
 
