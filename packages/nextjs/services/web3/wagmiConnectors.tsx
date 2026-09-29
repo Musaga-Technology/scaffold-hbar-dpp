@@ -2,9 +2,35 @@ import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { metaMaskWallet, walletConnectWallet } from "@rainbow-me/rainbowkit/wallets";
 import { rainbowkitBurnerWallet } from "burner-connector";
 import * as chains from "viem/chains";
+import { createConnector } from "wagmi";
+import { injected } from "wagmi/connectors";
 import scaffoldConfig from "~~/scaffold.config";
 
-const wallets = [metaMaskWallet, walletConnectWallet];
+/**
+ * MetaMask, connected through the extension's own injected provider.
+ *
+ * RainbowKit's metaMaskWallet routes even the installed extension through the
+ * MetaMask SDK. Restoring a session through the SDK could hang: wagmi knew the
+ * address but sat at "reconnecting", so the header showed a connected wallet
+ * while the wallet client never arrived and every write failed with "Cannot
+ * access account". The extension injects a standard EIP-1193 provider, and
+ * wagmi's injected connector talks to it directly — the path wagmi recommends
+ * for browser extensions.
+ *
+ * Without the extension this changes nothing: RainbowKit's own mobile and QR
+ * flow is kept.
+ */
+const metaMaskExtensionWallet: typeof metaMaskWallet = parameters => {
+  const wallet = metaMaskWallet(parameters);
+  if (!wallet.installed) return wallet;
+  return {
+    ...wallet,
+    createConnector: walletDetails =>
+      createConnector(config => ({ ...injected({ target: "metaMask" })(config), ...walletDetails })),
+  };
+};
+
+const wallets = [metaMaskExtensionWallet, walletConnectWallet];
 
 /**
  * Chains where a burner wallet is offered.

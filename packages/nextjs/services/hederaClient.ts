@@ -68,7 +68,49 @@ function operatorNetwork(): HederaNetwork {
  * explain what to configure rather than offering a button that will fail.
  */
 export function hasOperatorKey(): boolean {
-  return Boolean(process.env.HEDERA_OPERATOR_ID && process.env.HEDERA_OPERATOR_PRIVATE_KEY);
+  return operatorProblems().length === 0;
+}
+
+/** One reason the operator cannot be used, named by variable. */
+export interface OperatorProblem {
+  variable: "HEDERA_OPERATOR_ID" | "HEDERA_OPERATOR_PRIVATE_KEY";
+  problem: string;
+}
+
+/**
+ * Everything wrong with the operator settings, by variable name.
+ *
+ * Describes shapes only — never echoes a value — so the UI can say exactly what
+ * to fix. A bare "not configured" left someone who had set the key but not the
+ * id convinced the key was being ignored, and the natural next mistake is
+ * pasting the 0x EVM address where the SDK needs the 0.0.x account id.
+ */
+export function operatorProblems(): OperatorProblem[] {
+  const problems: OperatorProblem[] = [];
+  const id = process.env.HEDERA_OPERATOR_ID?.trim();
+  const key = process.env.HEDERA_OPERATOR_PRIVATE_KEY?.trim();
+
+  if (!id) {
+    problems.push({ variable: "HEDERA_OPERATOR_ID", problem: "is not set" });
+  } else if (/^0x[0-9a-fA-F]{40}$/.test(id)) {
+    problems.push({
+      variable: "HEDERA_OPERATOR_ID",
+      problem: "is an EVM address. It needs the same account's 0.0.x id, which HashScan shows for that address",
+    });
+  } else if (!/^\d+\.\d+\.\d+$/.test(id)) {
+    problems.push({ variable: "HEDERA_OPERATOR_ID", problem: "must be a Hedera account id, like 0.0.1234" });
+  }
+
+  if (!key) {
+    problems.push({ variable: "HEDERA_OPERATOR_PRIVATE_KEY", problem: "is not set" });
+  } else if (/^0x[0-9a-fA-F]{40}$/.test(key)) {
+    problems.push({
+      variable: "HEDERA_OPERATOR_PRIVATE_KEY",
+      problem: "is an address, not a private key. It needs the 0x key with 64 hex characters",
+    });
+  }
+
+  return problems;
 }
 
 /**

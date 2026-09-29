@@ -1,6 +1,6 @@
 import { fail, guard, ok } from "../_lib/responses";
 import { TopicCreateTransaction } from "@hiero-ledger/sdk";
-import { OperatorUnavailableError, createOperatorClient, hasOperatorKey } from "~~/services/hederaClient";
+import { OperatorUnavailableError, createOperatorClient, operatorProblems } from "~~/services/hederaClient";
 
 /** Request body for creating a product's lifecycle topic. */
 interface CreateTopicRequest {
@@ -29,7 +29,10 @@ interface CreateTopicRequest {
  * operator's id or key.
  */
 export async function GET() {
-  return guard(async () => ok({ configured: hasOperatorKey() }));
+  return guard(async () => {
+    const problems = operatorProblems();
+    return ok({ configured: problems.length === 0, problems });
+  });
 }
 
 export async function POST(request: Request) {
