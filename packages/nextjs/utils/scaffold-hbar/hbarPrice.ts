@@ -1,5 +1,18 @@
 export const HBAR_PRICE_CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes cache
-export const HBAR_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price?ids=hedera-hashgraph&vs_currencies=usd";
+/**
+ * Hedera's own HBAR/USD exchange rate, from the mainnet mirror node.
+ *
+ * This was CoinGecko. From a browser it intermittently answers 403 with no CORS
+ * header, and the browser logs that as a console error that no try/catch can
+ * suppress — on every wallet page, since the footer shows the price. The
+ * harness fails its browser gate on console errors, so whether it passed came
+ * down to whether CoinGecko was blocking at that moment.
+ *
+ * The mirror node needs no key, allows any origin, and publishes the rate the
+ * network itself uses to price fees. Mainnet's rather than testnet's, whichever
+ * network the app targets: testnet's rate file is not kept current.
+ */
+export const HBAR_PRICE_URL = "https://mainnet.mirrornode.hedera.com/api/v1/network/exchangerate";
 
 type HbarPriceCache = {
   price: number;
@@ -34,7 +47,9 @@ export async function fetchHbarPrice(): Promise<number> {
     }
 
     const data = await response.json();
-    const price = data?.["hedera-hashgraph"]?.usd ?? 0;
+    const rate = data?.current_rate;
+    // cent_equivalent US cents buy hbar_equivalent HBAR.
+    const price = rate?.hbar_equivalent > 0 ? rate.cent_equivalent / rate.hbar_equivalent / 100 : 0;
 
     if (price > 0) {
       cache = { price, timestamp: now };
