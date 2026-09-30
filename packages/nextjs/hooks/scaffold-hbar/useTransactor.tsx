@@ -35,15 +35,24 @@ const TxnNotification = ({ message, blockExplorerLink }: { message: string; bloc
  */
 export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => {
   let walletClient = _walletClient;
-  const { data } = useWalletClient();
+  const { data, error: walletClientError } = useWalletClient();
   if (walletClient === undefined && data) {
     walletClient = data;
   }
 
   const result: TransactionFunc = async (tx, options) => {
     if (!walletClient) {
-      notification.error("Cannot access account");
-      console.error("⚡️ ~ file: useTransactor.tsx ~ error");
+      // wagmi knows why it has no wallet client — a network mismatch, a
+      // connector that has not reconnected — and "Cannot access account" on its
+      // own hid that, leaving nothing to act on.
+      const reason =
+        (walletClientError as { shortMessage?: string } | null)?.shortMessage ??
+        walletClientError?.message ??
+        "the wallet has not finished connecting";
+      notification.error(
+        `Cannot access your wallet: ${reason}. Check the wallet is on Hedera testnet, or disconnect from the wallet menu and connect again.`,
+      );
+      console.error("⚡️ ~ file: useTransactor.tsx ~ no wallet client", walletClientError);
       return;
     }
 
