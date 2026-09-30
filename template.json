@@ -50,7 +50,7 @@
             {
               "label": "3. Bootstrap",
               "command": "{run:passport:bootstrap}",
-              "text": "Deploys PassportRegistry, creates the NFT collection, creates the demo product's HCS topic, registers the product and submits its first events. Set PINATA_JWT in packages/hardhat/.env first (a free pinata.cloud key is enough) and it also pins the metadata and a conformity declaration to IPFS for the indexer to verify. Idempotent — safe to re-run."
+              "text": "Deploys PassportRegistry, creates the NFT collection, creates the demo product's HCS topic, registers the product and submits its first events, with a conformity declaration on IPFS attached to the inspection for the indexer to verify. Set PINATA_JWT in packages/hardhat/.env first to pin your own copy and the token metadata. Idempotent — safe to re-run."
             },
             {
               "label": "4. Index it",

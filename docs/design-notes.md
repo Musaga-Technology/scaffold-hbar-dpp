@@ -160,6 +160,23 @@ page says up front that documents cannot be attached, and every other part of
 the template is unaffected — verification, custody, reconciliation and the
 public page all work with no storage configured at all.
 
+**The key uploads; verification never needs one.** That distinction is why a
+bootstrap without a key still produces a passport with a verified document.
+The demo declaration is the same file in every bootstrap, so it has the same
+CID, and a copy has been pinned since 22 September 2026. With no key, the
+bootstrap attaches that CID and its sha256 without uploading anything, and the
+indexer fetches and checks it from public gateways exactly as it would a
+document the developer pinned themselves.
+
+Before this, a first run without a key produced a passport with no IPFS at
+all — the one path a newcomer is most likely to take showed none of the
+integration the template is built around. The trade-off is stated rather than
+hidden: those passports depend on the shared pin staying in place. If it
+lapses, the document reports `unreachable`, which is the honest verdict and
+downgrades nothing. A unit test pins `SHARED_DEMO_DOCUMENT_CID` to the
+document's bytes, so editing the document without re-pinning it fails there
+instead of at bootstrap.
+
 ### IPFS or Arweave
 
 Both are supported, and a passport can carry documents on both at once; the

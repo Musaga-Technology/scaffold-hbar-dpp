@@ -25,7 +25,7 @@ import {
   type PassportState,
 } from "../scripts/lib/state";
 import { buildEvent, canonicalize, sha256Hex } from "../scripts/lib/events";
-import { DEMO_DOCUMENT, DEMO_EVENTS, demoProductHash } from "../scripts/lib/demoProduct";
+import { DEMO_DOCUMENT, DEMO_EVENTS, SHARED_DEMO_DOCUMENT_CID, demoProductHash } from "../scripts/lib/demoProduct";
 import { mergeEnvFile } from "../scripts/lib/envFile";
 import { SINGLE_BLOCK_MAX_BYTES, rawCid } from "../scripts/lib/storage";
 import { hashscan, resolveNetwork } from "../scripts/lib/hedera";
@@ -434,5 +434,14 @@ describe("deployer safety", function () {
     // hardhat.config falls back to that key, so bootstrap refuses to deploy a
     // registry whose owner key is published in every Hardhat tutorial.
     expect(isWellKnownTestAddress("0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA")).to.equal(false);
+  });
+});
+
+describe("shared demo document", function () {
+  it("is the exact document already pinned, so keyless bootstraps can attach it", function () {
+    // Every bootstrap without PINATA_JWT attaches the demo document by this CID
+    // instead of uploading it. Change the document and this fails: its CID
+    // changes, and the new one is not pinned anywhere yet.
+    expect(rawCid(new TextEncoder().encode(DEMO_DOCUMENT.body))).to.equal(SHARED_DEMO_DOCUMENT_CID);
   });
 });

@@ -46,12 +46,13 @@ import {
   DEMO_DOCUMENT,
   DEMO_EVENTS,
   DEMO_PRODUCT,
+  SHARED_DEMO_DOCUMENT_CID,
   demoMetadataUrl,
   demoProductHash,
 } from "./lib/demoProduct";
 import { mergeEnvFile } from "./lib/envFile";
 import { buildHip412Metadata, checkMetadataPointer, METADATA_POINTER_MAX_BYTES } from "./lib/metadata";
-import { canPin, pinFile, pinJson } from "./lib/storage";
+import { canPin, pinFile, pinJson, rawCid } from "./lib/storage";
 
 const COLLECTION_NAME = "Product Passports";
 const COLLECTION_SYMBOL = "PASS";
@@ -329,21 +330,36 @@ async function main(): Promise<void> {
       const actor = deployer;
 
       // Attach a real document to the inspection, content-addressed. The CID is
-      // computed here and Pinata's answer checked against it, so the event can
-      // only ever commit an address that names these exact bytes.
-      let attachments: Array<{ cid: string; hash: string; name: string; type: string; bytes: number }> = [];
+      // computed here, so the event can only ever commit an address that names
+      // these exact bytes. With a storage key it is pinned to the developer's
+      // own account and Pinata's answer checked against it. Without one, the
+      // same document is already on IPFS — its content, and so its CID, is
+      // identical in every bootstrap — so it is attached by reference and the
+      // indexer verifies it exactly the same way.
+      const bytes = new TextEncoder().encode(DEMO_DOCUMENT.body);
+      const hash = sha256Hex(DEMO_DOCUMENT.body);
+      let cid: string | undefined;
       if (canPin()) {
-        const bytes = new TextEncoder().encode(DEMO_DOCUMENT.body);
-        const cid = await pinFile(bytes, DEMO_DOCUMENT.name, DEMO_DOCUMENT.type);
-        if (cid) {
-          const hash = sha256Hex(DEMO_DOCUMENT.body);
-          attachments = [{ cid, hash, name: DEMO_DOCUMENT.name, type: DEMO_DOCUMENT.type, bytes: bytes.byteLength }];
-          state.documentCid = cid;
-          writeState(statePath, state);
-          console.log(`  document pinned ipfs://${cid}`);
-        }
+        cid = await pinFile(bytes, DEMO_DOCUMENT.name, DEMO_DOCUMENT.type);
+        if (cid) console.log(`  document pinned ipfs://${cid}`);
       } else {
-        console.log("  no document attached (set PINATA_JWT to pin one and have the indexer verify it)");
+        // Never abort here: the product is already minted, and a half-finished
+        // run is worse than a passport without a document. The unit test pins
+        // SHARED_DEMO_DOCUMENT_CID to these bytes, which is where drift fails.
+        if (rawCid(bytes) === SHARED_DEMO_DOCUMENT_CID) {
+          cid = SHARED_DEMO_DOCUMENT_CID;
+          console.log(`  document ipfs://${cid} (the shared sample, already on IPFS)`);
+          console.log("           set PINATA_JWT to pin documents to your own account instead");
+        } else {
+          console.log("  no document attached: the demo document changed and is not on IPFS; set PINATA_JWT to pin it");
+        }
+      }
+      const attachments = cid
+        ? [{ cid, hash, name: DEMO_DOCUMENT.name, type: DEMO_DOCUMENT.type, bytes: bytes.byteLength }]
+        : [];
+      if (cid) {
+        state.documentCid = cid;
+        writeState(statePath, state);
       }
 
       const registration = buildEvent({

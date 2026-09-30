@@ -50,7 +50,7 @@ export function demoMetadataUrl(baseUrl: string, topicId: string): string {
 }
 
 /**
- * The document attached to the demo inspection, when a storage provider is set.
+ * The document attached to the demo inspection.
  *
  * Deliberately small: under 256 KiB it is one raw IPFS block, so its CID is its
  * sha256 in CID form and the bootstrap can check Pinata's answer without any
@@ -75,6 +75,24 @@ export const DEMO_DOCUMENT = {
     "",
   ].join("\n"),
 } as const;
+
+/**
+ * The CID every copy of {@link DEMO_DOCUMENT} has, pinned by the template's
+ * maintainers since 22 September 2026.
+ *
+ * The document is identical in every bootstrap, so its content address is too.
+ * That lets a bootstrap with no storage key still attach a real document by
+ * reference: nothing to upload, and the indexer fetches and verifies it from
+ * public gateways like any other. Without this, a first run without a Pinata
+ * key produced a passport with no IPFS at all, hiding the integration the
+ * template is built around.
+ *
+ * If the maintainers' pin ever lapses, those passports report the document as
+ * unreachable — the honest verdict, and one that downgrades nothing. A test
+ * pins this constant to the document's bytes, so editing the document without
+ * updating it fails loudly.
+ */
+export const SHARED_DEMO_DOCUMENT_CID = "bafkreihtnneuanum2wo7tikuj7wgmrw4owgnbruv7h5mh4diduxx5nsa2e";
 
 /** Demo lifecycle events submitted after registration, in order. */
 export const DEMO_EVENTS = [

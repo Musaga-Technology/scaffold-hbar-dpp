@@ -120,13 +120,15 @@ links and all. [See the whole demo passport](docs/screenshots/verify-discrepancy
 You need **Node ≥ 20.18.3** and a funded **ECDSA** Hedera account. The portal
 offers ECDSA and ED25519; only ECDSA works here.
 
-**Optional, but decide before you bootstrap:** put `PINATA_JWT` in
-`packages/hardhat/.env` (a free key from [pinata.cloud](https://pinata.cloud) is
-enough; the file exists once you have run `account:generate` or
-`account:import`). The bootstrap then pins the token metadata and a conformity
-declaration to IPFS and attaches the declaration to the inspection event for
-the indexer to verify. Without it everything else still runs, just with no
-document on the passport.
+**Your passport gets a verified document either way.** The bootstrap attaches a
+conformity declaration to the demo inspection, and the indexer fetches it back
+from public IPFS gateways and checks it against its CID. With no storage key,
+it attaches a shared copy that is already on IPFS — the document is identical
+in every bootstrap, so its content address is too, and there is nothing to
+upload. For your own copy, and for token metadata on IPFS rather than served by
+the app, put `PINATA_JWT` in `packages/hardhat/.env` before you bootstrap (a
+free key from [pinata.cloud](https://pinata.cloud) is enough; the file exists
+once you have run `account:generate` or `account:import`).
 
 ```bash
 yarn install

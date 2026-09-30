@@ -77,7 +77,7 @@ It never takes a key. It only reads.
 | `HEDERA_RPC_URL` | JSON-RPC endpoint, defaults to Hashio testnet. |
 | `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_PRIVATE_KEY` | Optional. Leave blank and the bootstrap derives the operator from the deployer key, resolving its `0.0.x` id through the mirror node. |
 | `BOOTSTRAP_COLLECTION_FEE_HBAR` | HBAR forwarded to cover HTS token creation, default `20`. Raise it if `createCollection` reverts with `HtsCreateFailed(9)`. |
-| `PINATA_JWT` | Optional. The bootstrap pins the HIP-412 metadata and a demo conformity declaration, attaches the declaration to the inspection event, and refuses any CID from Pinata that does not match the one it computed itself. Without it, metadata is served by the app and no document is attached. |
+| `PINATA_JWT` | Optional. The bootstrap pins the HIP-412 metadata and a demo conformity declaration, attaches the declaration to the inspection event, and refuses any CID from Pinata that does not match the one it computed itself. Without it, metadata is served by the app, and the declaration is attached by reference to a shared copy already on IPFS — identical in every bootstrap, so the indexer still verifies it. |
 | `NEXT_PUBLIC_APP_URL` | Base URL baked into a serial's metadata pointer when there is no `PINATA_JWT`, default `http://localhost:3000`. |
 | `BOOTSTRAP_NEW_PRODUCT` | What `yarn passport:new-product` sets. Use the command rather than setting this by hand: left in `.env`, it would start a new product on every run. |
 
