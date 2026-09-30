@@ -194,15 +194,17 @@ things the bootstrap deliberately does not do for you, and the page tells you
 which one is missing before you fill anything in:
 
 1. **An operator key in the app.** Registering creates the product's HCS topic
-   from the server, and the bootstrap never copies a key into the app. Use the
-   account the bootstrap printed as `operator` — its key is your deployer key,
-   which `yarn hardhat:account:reveal-pk` prints after asking for the password.
-   Add both to `packages/nextjs/.env.local` and restart `yarn next:start`:
+   from the server, which needs an operator account and its key. The bootstrap
+   has already written the account — `HEDERA_OPERATOR_ID`, the `0.0.x` id it
+   printed as `operator` — into `packages/nextjs/.env.local`. It never writes
+   the key; that one line is yours. The key is your deployer key, which
+   `yarn hardhat:account:reveal-pk` prints after asking for the password:
 
    ```bash
-   HEDERA_OPERATOR_ID=0.0.xxxx
    HEDERA_OPERATOR_PRIVATE_KEY=0x…      # ECDSA, hex — server-side, never NEXT_PUBLIC_
    ```
+
+   Add it to `packages/nextjs/.env.local`; the dev server picks it up on save.
 
 2. **A wallet the registry accepts.** Only the registry's owner — the account
    you bootstrapped with — and wallets it allow-lists can register. Import that

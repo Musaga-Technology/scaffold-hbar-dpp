@@ -18,9 +18,10 @@ interface OperatorStatus {
 /**
  * Whether the server has usable operator credentials, asked once.
  *
- * The issuer pages create topics and submit events server-side, and the
- * bootstrap deliberately never writes a key into the app — so this is the first
- * thing a developer who has just bootstrapped will hit on /issuer.
+ * The issuer pages create topics and submit events server-side. The bootstrap
+ * writes the operator's account id into the app but deliberately never its key
+ * — so the key is the first thing a developer who has just bootstrapped will
+ * be asked for on /issuer.
  */
 export function useOperatorStatus(): OperatorStatus {
   const [status, setStatus] = useState<OperatorStatus>({ configured: undefined, problems: [] });
@@ -74,7 +75,7 @@ export const OperatorNotice = () => {
         <p className="m-0 font-semibold">This app cannot write to Hedera yet.</p>
         <p className="mb-2 mt-1">
           Registering and logging events create HCS topics and messages from the server, which needs an operator account
-          id <em>and</em> its key. The bootstrap never copies them into the app.
+          id <em>and</em> its key. The bootstrap writes the id; it never writes the key.
         </p>
         <ul className="mb-2 mt-0 pl-5">
           {shown.map(entry => (

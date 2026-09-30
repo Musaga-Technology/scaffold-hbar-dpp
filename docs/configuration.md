@@ -16,11 +16,15 @@ re-run:
 
 | File | Keys it sets |
 | --- | --- |
-| `packages/nextjs/.env.local` | `NEXT_PUBLIC_PASSPORT_REGISTRY_ADDRESS`, `NEXT_PUBLIC_PASSPORT_TOKEN_ID`, `NEXT_PUBLIC_HEDERA_NETWORK`, `INDEX_API_URL` |
+| `packages/nextjs/.env.local` | `NEXT_PUBLIC_PASSPORT_REGISTRY_ADDRESS`, `NEXT_PUBLIC_PASSPORT_TOKEN_ID`, `NEXT_PUBLIC_HEDERA_NETWORK`, `INDEX_API_URL`, and `HEDERA_OPERATOR_ID` **only if it is not already set** |
 | `packages/indexer/.env.local` | `HEDERA_NETWORK`, `PASSPORT_REGISTRY_ADDRESS`, `INDEXER_TOPIC_IDS` (left empty on purpose) |
 
-It never writes a key into the app. To register products from `/issuer`, add
-operator credentials yourself — see the app table below.
+It fills in the operator's account id because it is public — it appears on
+every transaction the operator pays for — and never overwrites one you chose:
+you would have set that account's key too, and replacing only the id would pair
+it with the wrong key. **It never writes a key.** To register products from
+`/issuer`, add `HEDERA_OPERATOR_PRIVATE_KEY` yourself; the bootstrap prints how
+at the end of its run.
 
 ## `packages/nextjs` — the app
 

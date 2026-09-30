@@ -50,7 +50,7 @@ import {
   demoMetadataUrl,
   demoProductHash,
 } from "./lib/demoProduct";
-import { mergeEnvFile } from "./lib/envFile";
+import { mergeEnvFile, operatorIdEntry, readEnvValue } from "./lib/envFile";
 import { buildHip412Metadata, checkMetadataPointer, METADATA_POINTER_MAX_BYTES } from "./lib/metadata";
 import { canPin, pinFile, pinJson, rawCid } from "./lib/storage";
 
@@ -410,10 +410,15 @@ async function main(): Promise<void> {
   // ----------------------------------------------------------------- env files
   heading("5. Configuration");
   const indexApiUrl = process.env.INDEX_API_URL ?? `http://localhost:${process.env.INDEXER_PORT ?? 3001}`;
+  const appEnvPath = path.join(REPO_ROOT, "packages", "nextjs", ".env.local");
+  const appEnv = fs.existsSync(appEnvPath) ? fs.readFileSync(appEnvPath, "utf8") : "";
 
   writeEnvLocal(
-    path.join(REPO_ROOT, "packages", "nextjs", ".env.local"),
+    appEnvPath,
     {
+      // Public, so the bootstrap fills it in, but only if unset: see
+      // operatorIdEntry. The key stays with the developer.
+      ...operatorIdEntry(appEnv, operator.accountId),
       NEXT_PUBLIC_PASSPORT_REGISTRY_ADDRESS: state.registryAddress!,
       NEXT_PUBLIC_PASSPORT_TOKEN_ID: tokenId,
       NEXT_PUBLIC_HEDERA_NETWORK: network,
@@ -423,7 +428,7 @@ async function main(): Promise<void> {
       // the demo battery.
       INDEX_API_URL: indexApiUrl,
     },
-    "Public values only — the operator key stays server-side.",
+    "Public values only — never the operator key, which you add yourself.",
   );
   writeEnvLocal(
     path.join(REPO_ROOT, "packages", "indexer", ".env.local"),
@@ -451,6 +456,17 @@ async function main(): Promise<void> {
     console.log("\nEverything already existed, so nothing was registered.");
     console.log("  http://localhost:3000/issuer   register your own products here");
     console.log("  yarn passport:new-product      or add another demo product from the CLI");
+  }
+
+  // The one step the bootstrap deliberately leaves to the developer.
+  const appEnvAfter = fs.existsSync(appEnvPath) ? fs.readFileSync(appEnvPath, "utf8") : "";
+  if (!readEnvValue(appEnvAfter, "HEDERA_OPERATOR_PRIVATE_KEY")) {
+    console.log("\nTo register products from the issuer page, add the operator's key to");
+    console.log(
+      `packages/nextjs/.env.local — HEDERA_OPERATOR_ID is already set to ${readEnvValue(appEnvAfter, "HEDERA_OPERATOR_ID")}:`,
+    );
+    console.log("  yarn hardhat:account:reveal-pk     # prints it after asking for your password");
+    console.log("  HEDERA_OPERATOR_PRIVATE_KEY=0x…    # add this line; never prefix it NEXT_PUBLIC_");
   }
 
   console.log("\nNext:");

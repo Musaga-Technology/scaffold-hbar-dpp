@@ -26,7 +26,7 @@ import {
 } from "../scripts/lib/state";
 import { buildEvent, canonicalize, sha256Hex } from "../scripts/lib/events";
 import { DEMO_DOCUMENT, DEMO_EVENTS, SHARED_DEMO_DOCUMENT_CID, demoProductHash } from "../scripts/lib/demoProduct";
-import { mergeEnvFile } from "../scripts/lib/envFile";
+import { mergeEnvFile, operatorIdEntry, readEnvValue } from "../scripts/lib/envFile";
 import { SINGLE_BLOCK_MAX_BYTES, rawCid } from "../scripts/lib/storage";
 import { hashscan, resolveNetwork } from "../scripts/lib/hedera";
 
@@ -443,5 +443,33 @@ describe("shared demo document", function () {
     // instead of uploading it. Change the document and this fails: its CID
     // changes, and the new one is not pinned anywhere yet.
     expect(rawCid(new TextEncoder().encode(DEMO_DOCUMENT.body))).to.equal(SHARED_DEMO_DOCUMENT_CID);
+  });
+});
+
+describe("operator id in the app's env file", function () {
+  it("is filled in when the file has none", function () {
+    expect(operatorIdEntry("NEXT_PUBLIC_HEDERA_NETWORK=testnet\n", "0.0.7190733")).to.deep.equal({
+      HEDERA_OPERATOR_ID: "0.0.7190733",
+    });
+  });
+
+  it("is filled in when the key is present but empty", function () {
+    expect(operatorIdEntry("HEDERA_OPERATOR_ID=\n", "0.0.7190733")).to.deep.equal({
+      HEDERA_OPERATOR_ID: "0.0.7190733",
+    });
+  });
+
+  it("never replaces an id the developer chose", function () {
+    // They set that account's key too; swapping only the id would pair it with
+    // the wrong key and break every write.
+    expect(operatorIdEntry("HEDERA_OPERATOR_ID=0.0.1234\n", "0.0.7190733")).to.deep.equal({});
+  });
+
+  it("reads values the way the files are written", function () {
+    const text = 'A=1\nexport B = "two"\nC=\n# D=commented\n';
+    expect(readEnvValue(text, "A")).to.equal("1");
+    expect(readEnvValue(text, "B")).to.equal("two");
+    expect(readEnvValue(text, "C")).to.equal(undefined);
+    expect(readEnvValue(text, "D")).to.equal(undefined);
   });
 });
