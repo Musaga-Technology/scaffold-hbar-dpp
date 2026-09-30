@@ -67,14 +67,21 @@ the agent kickoff prompt.
 
 ## Testnet run
 
-Bootstrapped against Hedera testnet on 21 September 2026 from a funded ECDSA
-account. Registry `0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A`, collection
-`0.0.10649382`, serial 1, topic `0.0.10649383`.
+Registry `0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A`, collection
+`0.0.10649382`, on Hedera testnet, from a funded ECDSA account.
 
-The indexer read all three lifecycle messages, reconciled the registration
-against the mint, and `/verify/1` rendered as **verified** with HashScan links
-to the real entities. All three payload hashes were independently recomputed
-from mirror node data and matched what was committed on HCS.
+| Serial | Made | What it proved |
+| --- | --- | --- |
+| 1 | 21 September, `yarn passport:bootstrap` | The command-line path: deploy, collection, topic, mint, three events. `/verify/1` rendered **verified**; all three payload hashes recomputed from mirror node data matched. |
+| 2 | 22 September, `yarn passport:new-product` | Pinned HIP-412 metadata and a document attached by the bootstrap, verified against its CID. |
+| 3 | 29–30 September, **the issuer page with MetaMask** | The whole UI lifecycle: registered, shipped, inspected with a report attached, handed over. The indexer reports the passport verified, the hand-over **reconciled** against the real NFT transfer, and the report verified against its CID with no gateway trusted. |
+
+Serial 3 is the one the README links to. It is also the run that found the
+issuer page had never worked with a real wallet: a hanging MetaMask session
+restore, a gas estimate that ran out, topics orphaned by failed attempts,
+hand-over buttons that could not move a new passport, and hand-over claims
+that could never have matched. Each is fixed; the tests and the harness had
+passed throughout.
 
 Links are in the [README](../README.md#proof-it-runs-on-hedera-testnet).
 

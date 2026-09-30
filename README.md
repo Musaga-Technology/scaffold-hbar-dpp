@@ -42,7 +42,7 @@ part of the template rather than an add-on.
 | **Run it for real** — 5 commands | a funded [testnet account](https://portal.hedera.com) | Your own registry on Hedera: tokens, topics, documents on IPFS, all verifiable on HashScan |
 
 It is already running on testnet if you would rather see that first:
-[serial 2 and its lifecycle topic](#proof-it-runs-on-hedera-testnet). If you
+[serial 3 and its lifecycle topic](#proof-it-runs-on-hedera-testnet). If you
 would rather read than run: [design notes](docs/design-notes.md) covers why
 reconciliation, content addressing and the index work the way they do, and
 [AGENTS.md](AGENTS.md) is the briefing for coding agents working in the repo.
@@ -147,32 +147,43 @@ wrong, `yarn passport:status` checks every entity against the mirror node.
 
 ## Proof it runs on Hedera testnet
 
-Serial 2 was bootstrapped on 22 September 2026 and exercises every part of the
-template, including a real document. Open any of these:
+Serial 3 was made on 29–30 September 2026 entirely through the issuer page,
+with MetaMask — not by a script. It exercises the whole lifecycle: registered,
+shipped, inspected with a lab report attached, and handed over. Open any of
+these:
 
 | | |
 | --- | --- |
 | Registry contract | [`0xCBc3089c…5f22D5a7A`](https://hashscan.io/testnet/contract/0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A) |
 | Collection | [`0.0.10649382`](https://hashscan.io/testnet/token/0.0.10649382) |
-| Passport serial 2 | [`0.0.10649382/2`](https://hashscan.io/testnet/token/0.0.10649382/2) |
-| Lifecycle topic | [`0.0.10668028`](https://hashscan.io/testnet/topic/0.0.10668028) |
-| HIP-412 metadata, on the serial | [`ipfs://bafkreidu7j…vkylwi`](https://inbrowser.link/ipfs/bafkreidu7jb6w3eaddepjfptlng2skhjulk7abdpqftgwncw6eq5vkylwi) |
-| Declaration of conformity, attached to the inspection | [`ipfs://bafkreihtnn…nsa2e`](https://inbrowser.link/ipfs/bafkreihtnneuanum2wo7tikuj7wgmrw4owgnbruv7h5mh4diduxx5nsa2e) |
+| Passport serial 3 | [`0.0.10649382/3`](https://hashscan.io/testnet/token/0.0.10649382/3) |
+| Lifecycle topic | [`0.0.10777326`](https://hashscan.io/testnet/topic/0.0.10777326) |
+| HIP-412 metadata, on the serial | [`ipfs://bafkreigi6m…nfxiyu`](https://inbrowser.link/ipfs/bafkreigi6mq5i3zi3cqna7v5eau5v4qwxuchqm5w5qfnrplsdfz3nfxiyu) |
+| Fibre test report, attached to the inspection | [`ipfs://bafkreidsm7…5td4m`](https://inbrowser.link/ipfs/bafkreidsm7uqlroeataasyanykegbplrvk2vytfgaba7s5spbgbqs5td4m) |
 
 Read the topic yourself, without trusting this page:
 
 ```bash
-curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10668028/messages?order=asc" \
+curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10777326/messages?order=asc" \
   | jq -r '.messages[] | "\(.sequence_number) \(.message|@base64d)"'
 ```
 
-The third message is the inspection. Its attachment commits the declaration's
-CID and its sha256, `f36b4940…6eb640d1`. The document is small enough to be a
-single raw block, so that sha256 is literally inside the CID — decode
-`bafkreihtnn…` and you get the same 32 bytes. The indexer fetches the
-declaration back as a CAR from a public gateway it does not trust, checks it
-against the CID, and reports it verified. The links above open through
-`inbrowser.link`, which does the same check in your browser.
+Four messages, each carrying the sha256 of its own payload:
+
+1. **Registered.** The indexer matches it to the mint on the collection.
+2. **Shipped**, Porto mill to Hamburg DC.
+3. **Inspected**, with the report attached by its CID and its sha256,
+   `7267e905…097663e3`. The report is small enough to be a single raw block,
+   so that sha256 is literally inside the CID — decode `bafkreidsm7…` and you
+   get the same 32 bytes. The indexer fetches the report back as a CAR from a
+   public gateway it does not trust, checks it against the CID, and reports it
+   verified.
+4. **Custody transferred** from the registry (`0.0.10649381`) to the issuer
+   (`0.0.7190733`). The NFT moved first; the claim followed; the indexer
+   matched the two and reports the hand-over **reconciled**.
+
+The links above open through `inbrowser.link`, which checks the content
+against its CID in your browser.
 
 ## Register your own products
 
