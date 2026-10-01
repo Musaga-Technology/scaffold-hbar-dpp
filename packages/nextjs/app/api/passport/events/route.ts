@@ -37,7 +37,8 @@ interface SubmitEventRequest extends LogEventRequest {
  * the only place it *can* be, since it holds the topic's submit key and HCS
  * itself is append-only. When no registry is configured the check is skipped,
  * and the response says so rather than letting "allowed" and "not checked" look
- * identical.
+ * identical. The actor checked is the one the request names; the caller is not
+ * authenticated (see SECURITY.md).
  */
 export async function POST(request: Request) {
   return guard(async () => {

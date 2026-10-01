@@ -37,7 +37,7 @@ These are not style preferences. Breaking one breaks the template's premise.
 | `packages/nextjs/services/storage/` | Pinning provider interface; Pinata is the default |
 | `packages/nextjs/app/(public)/verify/[serial]/` | Public passport page — no wallet, no env |
 | `packages/nextjs/app/api/passport/` | Server routes: topics, events, attachments, metadata, airdrop, index queries |
-| `packages/nextjs/services/registry.ts` | Server-side reads of the registry; where the event-logger allow-list is enforced |
+| `packages/nextjs/services/registry.ts` | Server-side reads of the registry; where the event-logger allow-list is checked against the named actor (not yet authenticated — see `SECURITY.md`) |
 | `packages/nextjs/contracts/deployedContracts.ts` | Generated on deploy — do not hand-edit |
 | `schemas/passport-event.schema.json` | The HCS message contract |
 | `schemas/categories/` | One file per product category |

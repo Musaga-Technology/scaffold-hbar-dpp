@@ -450,6 +450,8 @@ keystore rather than a raw key. A fresh clone has no `.env` and validates clean.
 - [Fresh-machine check](docs/fresh-machine-check.md) — what a clean scaffold actually produces, with real timings
 - [Configuration](docs/configuration.md) — every environment variable
 - [AGENTS.md](AGENTS.md) — briefing for coding agents
+- [CONTRIBUTING.md](CONTRIBUTING.md) — the gates to run before a pull request
+- [SECURITY.md](SECURITY.md) — who holds which key, what a verified passport proves, known limitations, and how to report a vulnerability
 - [Hedera docs](https://docs.hedera.com) · [HashScan testnet](https://hashscan.io/testnet) · [Portal faucet](https://portal.hedera.com/faucet)
 
 ## Disclaimer

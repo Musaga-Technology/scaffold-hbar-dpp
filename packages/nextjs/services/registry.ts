@@ -10,6 +10,10 @@
  * route enforced the allow-list. It did not. That was a worse defect than a
  * missing feature: a developer reading the contract would reasonably believe
  * their allow-list did something.
+ *
+ * The check is against the actor a request *names*. Nothing yet proves the
+ * caller controls that address, so this stops honest mistakes, not an
+ * impostor. SECURITY.md lists it as a known limitation.
  */
 import "server-only";
 import { type Address, createPublicClient, http } from "viem";
