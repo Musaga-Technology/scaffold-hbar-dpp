@@ -1,0 +1,68 @@
+# What a developer gets on first run, checked on every push.
+#
+# Scaffolds the checked-out commit through the real create-scaffold-hbar CLI, on
+# the lowest Node the brief and template.json allow, then runs every gate inside
+# the generated project, boots the production app with no .env, and drives it in
+# a real browser with `yarn smoke`.
+#
+# Each check here replaces something once found only by hand: an indexer
+# dependency that silently needed Node 22, a console error that made the harness
+# gate flaky, and invariant 2 — the browser never reads HCS — which until now
+# only a person watching devtools could confirm.
+name: fresh-scaffold
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  scaffold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The floor: template.json and the brief both say >= 20.18.3.
+          node-version: 20.18.3
+
+      - run: corepack enable
+
+      - name: Scaffold this commit through the CLI
+        working-directory: ${{ runner.temp }}
+        env:
+          # The CLI's local-template hook: scaffold from this checkout rather than
+          # from GitHub, so a pull request tests its own changes.
+          CREATE_SCAFFOLD_HBAR_TEMPLATE_DIR: ${{ github.workspace }}
+        # The framework and package manager are named rather than left to --yes:
+        # the CLI's own default is Foundry, and this template ships Hardhat.
+        run: >-
+          npx -y create-scaffold-hbar@latest app
+          --template Musaga-Technology/scaffold-hbar-dpp
+          --frontend nextjs-app --solidity-framework hardhat --package-manager yarn
+          --yes --skip-hedera-skills
+
+      - name: Gates, inside the generated project
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          test ! -e .env && test ! -e packages/nextjs/.env.local
+          yarn lint
+          yarn next:check-types
+          yarn indexer:check-types
+          yarn hardhat:compile
+          yarn hardhat:test
+          yarn indexer:test
+          yarn next:build
+
+      - name: Boot with no configuration and drive it in a browser
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          yarn playwright install --with-deps chromium
+          yarn next:serve > next.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3000 && break
+            sleep 2
+          done
+          PLAYWRIGHT_CHANNEL=bundled yarn smoke || { tail -50 next.log; exit 1; }

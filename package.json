@@ -47,6 +47,7 @@
     "next:serve": "yarn workspace @sh/nextjs serve",
     "next:start": "yarn workspace @sh/nextjs start",
     "screenshots": "node scripts/screenshots.mjs",
+    "smoke": "node scripts/smoke.mjs",
     "passport:bootstrap": "yarn workspace @sh/hardhat passport:bootstrap",
     "passport:new-product": "yarn workspace @sh/hardhat passport:new-product",
     "passport:status": "yarn workspace @sh/hardhat passport:status",
