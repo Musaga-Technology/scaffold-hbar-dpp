@@ -54,6 +54,8 @@ export const SchemaForm = ({
         maxLength={field.maxLength}
         min={field.minimum}
         max={field.maximum}
+        // A number input defaults to step 1, which rejects 41.2 kg CO2e/kWh.
+        step={field.type === "number" ? "any" : undefined}
       />
     );
   };
