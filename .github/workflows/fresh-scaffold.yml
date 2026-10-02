@@ -30,6 +30,11 @@ jobs:
 
       - run: corepack enable
 
+      # The CLI refuses to start without a git identity, which runners lack.
+      - run: |
+          git config --global user.name "fresh-scaffold"
+          git config --global user.email "fresh-scaffold@users.noreply.github.com"
+
       - name: Scaffold this commit through the CLI
         working-directory: ${{ runner.temp }}
         env:
