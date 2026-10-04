@@ -74,7 +74,8 @@ secretScan:
       pattern: "302e020100300506032b657004220420[0-9a-fA-F]{64}"
 
 requiredFiles:
-  - template.json
+  # template.json is checked by CI in the template repo: the CLI removes it
+  # from generated projects, where this spec also runs.
   - README.md
   - AGENTS.md
   - CLAUDE.md
