@@ -71,9 +71,11 @@ export async function guard<T>(handler: () => Promise<NextResponse<T | ErrorBody
     return await handler();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // An unreachable index is the common case and is not the app's fault.
-    if (message.includes("Index API")) {
-      return fail("index_unavailable", `${message}. Is \`yarn indexer:dev\` running?`);
+    // An unreachable index is the common case and is not the app's fault. Match
+    // the error's code, not its wording: this once looked for "Index API" while
+    // the message said "index API", so every one of them became a 500.
+    if ((error as { code?: unknown } | null)?.code === "index_unavailable") {
+      return fail("index_unavailable", message);
     }
     return fail("internal", message);
   }
