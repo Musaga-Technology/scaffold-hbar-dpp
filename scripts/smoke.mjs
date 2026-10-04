@@ -28,7 +28,7 @@ const BASE = (process.env.SMOKE_BASE_URL ?? "http://localhost:3000").replace(/\/
 const PAGES = [
   {
     path: "/",
-    text: ["Every product, with a history you can check", "This is sample data", "All 2 passports"],
+    text: ["Every product, with a history you can check", "This is sample data", "All 3 passports"],
   },
   {
     path: "/verify/1",
@@ -40,6 +40,12 @@ const PAGES = [
     path: "/verify/2",
     text: ["Coastal Parka, recycled shell", "does not match its attestation"],
     testIds: ["discrepancy-alert", "document-alert"],
+  },
+  {
+    // The bundled snapshot of a real testnet passport: real ids, links that resolve.
+    path: "/verify/3",
+    text: ["Harbour Merino Crew, recycled blend", "A real passport on Hedera testnet", "Verified"],
+    testIds: ["snapshot-banner", "timeline", "documents"],
   },
   {
     // No registry configured, so the page must say what to run, not offer a form.
@@ -100,8 +106,8 @@ async function checkApi() {
   if (response.status !== 200) return [`status ${response.status}`];
   const body = await response.json();
   const products = Array.isArray(body) ? body : body.products;
-  if (!Array.isArray(products) || products.length !== 2) {
-    failures.push(`expected the 2 demo products, got ${JSON.stringify(body).slice(0, 120)}`);
+  if (!Array.isArray(products) || products.length !== 3) {
+    failures.push(`expected the 3 bundled products, got ${JSON.stringify(body).slice(0, 120)}`);
   }
   return failures;
 }

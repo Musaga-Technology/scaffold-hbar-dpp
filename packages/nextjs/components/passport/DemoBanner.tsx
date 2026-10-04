@@ -12,14 +12,24 @@ import { InformationCircleIcon } from "@heroicons/react/24/outline";
  * still rendered, and individually marked, so the shape of a real passport is
  * visible — but nobody should click one and wonder why it is empty.
  */
-export const DemoBanner = () => (
+export const DemoBanner = ({ registry = false }: { registry?: boolean }) => (
   <div className="alert alert-info mb-6" data-testid="demo-banner">
     <InformationCircleIcon className="h-5 w-5 shrink-0" />
-    <span>
-      <strong>Demo data.</strong> This passport comes from bundled fixtures, not a live registry. The token, topic and
-      account ids are illustrative and deliberately unallocated, so the HashScan links below will not resolve. Run{" "}
-      <code className="rounded bg-base-300/50 px-1">yarn passport:bootstrap</code> and{" "}
-      <code className="rounded bg-base-300/50 px-1">yarn indexer:dev</code> to index a real passport whose links do.
-    </span>
+    {registry ? (
+      <span>
+        <strong>Demo data.</strong> These passports come from bundled fixtures, not a live registry. Serials 1 and 2 use
+        illustrative ids that are deliberately unallocated, so their HashScan links will not resolve. Serial 3 is a
+        snapshot of a real passport on Hedera testnet, and its links do. Run{" "}
+        <code className="rounded bg-base-300/50 px-1">yarn passport:bootstrap</code> and{" "}
+        <code className="rounded bg-base-300/50 px-1">yarn indexer:dev</code> to index your own.
+      </span>
+    ) : (
+      <span>
+        <strong>Demo data.</strong> This passport comes from bundled fixtures, not a live registry. The token, topic and
+        account ids are illustrative and deliberately unallocated, so the HashScan links below will not resolve. Run{" "}
+        <code className="rounded bg-base-300/50 px-1">yarn passport:bootstrap</code> and{" "}
+        <code className="rounded bg-base-300/50 px-1">yarn indexer:dev</code> to index a real passport whose links do.
+      </span>
+    )}
   </div>
 );

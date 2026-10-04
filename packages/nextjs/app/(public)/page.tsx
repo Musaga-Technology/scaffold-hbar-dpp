@@ -80,7 +80,7 @@ const Home = async () => {
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-5 pb-16">
-        <div className="-mt-6">{demo && <DemoBanner />}</div>
+        <div className="-mt-6">{demo && <DemoBanner registry />}</div>
 
         {flagged && (
           <Link

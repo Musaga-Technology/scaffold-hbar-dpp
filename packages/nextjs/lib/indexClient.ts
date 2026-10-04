@@ -20,6 +20,7 @@
 import demoForged from "../fixtures/demo-passport-forged.json";
 import demoPassport from "../fixtures/demo-passport.json";
 import demoStats from "../fixtures/demo-stats.json";
+import testnetSnapshot from "../fixtures/testnet-passport.json";
 
 /** Per-event reconciliation outcome, as recorded by the indexer. */
 export type ReconciliationState = "n/a" | "reconciled" | "discrepancy" | "pending";
@@ -153,7 +154,30 @@ export function isDemoMode(): boolean {
   return dataSource() === "fixtures";
 }
 
-const FIXTURES: PassportView[] = [demoPassport as unknown as PassportView, demoForged as unknown as PassportView];
+const FIXTURES: PassportView[] = [
+  demoPassport as unknown as PassportView,
+  demoForged as unknown as PassportView,
+  testnetSnapshot as unknown as PassportView,
+];
+
+/** When the bundled testnet snapshot was taken, for the page to say so. */
+export const TESTNET_SNAPSHOT_TAKEN_AT = testnetSnapshot.$snapshot.takenAt;
+
+/**
+ * True for the one bundled passport whose ids are real.
+ *
+ * The two demo fixtures use deliberately unallocated ids, so their HashScan
+ * links resolve to nothing and the page marks them as illustrative. The
+ * snapshot is a copy of a real testnet passport: its links resolve, and marking
+ * them illustrative would be as misleading as passing the others off as real.
+ */
+export function isTestnetSnapshot(product: PassportProduct): boolean {
+  return (
+    dataSource() === "fixtures" &&
+    product.tokenId === testnetSnapshot.product.tokenId &&
+    product.serial === testnetSnapshot.product.serial
+  );
+}
 
 function indexApiUrl(path: string): string {
   const base = (process.env.INDEX_API_URL ?? "").replace(/\/+$/, "");
@@ -231,7 +255,23 @@ export async function listEvents(serial: number): Promise<PassportEventRow[]> {
 /** Registry-wide counts for the landing page. */
 export async function getStats(): Promise<IndexStats> {
   if (dataSource() === "fixtures") {
-    return demoStats as unknown as IndexStats;
+    // demo-stats.json is generated from the two demo fixtures only, so the
+    // hand-taken testnet snapshot is counted here rather than in that file.
+    const base = demoStats as unknown as IndexStats;
+    const snapshot = testnetSnapshot as unknown as PassportView;
+    const verifiedDocs = snapshot.attachments.filter(a => a.state === "verified").length;
+    return {
+      ...base,
+      products: base.products + 1,
+      events: base.events + snapshot.events.length,
+      attachments: base.attachments + snapshot.attachments.length,
+      attachmentsVerified: base.attachmentsVerified + verifiedDocs,
+      attachmentsFailed: base.attachmentsFailed + snapshot.attachments.filter(a => a.state === "mismatch").length,
+      verified: base.verified + (snapshot.product.status === "verified" ? 1 : 0),
+      pending: base.pending + (snapshot.product.status === "pending" ? 1 : 0),
+      discrepancies: base.discrepancies + (snapshot.product.status === "discrepancy" ? 1 : 0),
+      topics: base.topics + 1,
+    };
   }
   return (
     (await fetchFromIndex<IndexStats>("/api/passport/stats")) ?? {

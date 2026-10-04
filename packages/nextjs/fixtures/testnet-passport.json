@@ -1,0 +1,165 @@
+{
+  "$comment": "A snapshot of a real passport on Hedera testnet: serial 3 of collection 0.0.10649382, made through the issuer page with MetaMask. Taken from the live index on 4 October 2026. Unlike the two demo fixtures, every id here is real, so its HashScan and IPFS links resolve. Refresh it with `curl localhost:3001/products/3` while `yarn indexer:dev` follows registry 0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A.",
+  "$snapshot": {
+    "network": "testnet",
+    "takenAt": "2026-10-04"
+  },
+  "product": {
+    "serial": 3,
+    "tokenId": "0.0.10649382",
+    "topicId": "0.0.10777326",
+    "productHash": "611493277dcb9d26bce6fc4263e33ef0a67a3b0ef85ffcb8831cee861bb4ce20",
+    "issuer": "0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA",
+    "category": "textile",
+    "name": "Harbour Merino Crew, recycled blend",
+    "metadataJson": "{\"careInstructionsUrl\":\"https://example.com/care/9506000145006\",\"category\":\"textile\",\"fibreComposition\":\"60% recycled wool, 40% organic cotton\",\"gtin\":\"9506000145006\",\"manufacturedAt\":\"2026-09-15\",\"manufacturer\":\"Northwind Apparel\",\"name\":\"Harbour Merino Crew, recycled blend\",\"originCountry\":\"PT\",\"recycledContentPct\":60}",
+    "currentHolder": "0.0.7190733",
+    "status": "verified",
+    "lastReconciledAt": "2026-10-04T18:37:00.031Z"
+  },
+  "events": [
+    {
+      "id": 23,
+      "topicId": "0.0.10777326",
+      "sequenceNumber": 1,
+      "consensusTimestamp": "1790689326.912431571",
+      "serial": 3,
+      "tokenId": "0.0.10649382",
+      "type": "product.registered",
+      "actor": "0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA",
+      "payloadJson": "{\"careInstructionsUrl\":\"https://example.com/care/9506000145006\",\"category\":\"textile\",\"fibreComposition\":\"60% recycled wool, 40% organic cotton\",\"gtin\":\"9506000145006\",\"manufacturedAt\":\"2026-09-15\",\"manufacturer\":\"Northwind Apparel\",\"name\":\"Harbour Merino Crew, recycled blend\",\"originCountry\":\"PT\",\"recycledContentPct\":60}",
+      "payloadHash": "611493277dcb9d26bce6fc4263e33ef0a67a3b0ef85ffcb8831cee861bb4ce20",
+      "ref": "0xd7e3171eb71cd67c4f1778d6661e8efffe44fe59781ce7af969162b215a6145c",
+      "hashValid": true,
+      "malformedReason": null,
+      "rawHash": null,
+      "reconciliation": "reconciled",
+      "reconciliationNote": "Mint confirmed on-chain at 1790689293.129069105.",
+      "payload": {
+        "careInstructionsUrl": "https://example.com/care/9506000145006",
+        "category": "textile",
+        "fibreComposition": "60% recycled wool, 40% organic cotton",
+        "gtin": "9506000145006",
+        "manufacturedAt": "2026-09-15",
+        "manufacturer": "Northwind Apparel",
+        "name": "Harbour Merino Crew, recycled blend",
+        "originCountry": "PT",
+        "recycledContentPct": 60
+      }
+    },
+    {
+      "id": 24,
+      "topicId": "0.0.10777326",
+      "sequenceNumber": 2,
+      "consensusTimestamp": "1790738289.761227104",
+      "serial": 3,
+      "tokenId": "0.0.10649382",
+      "type": "product.shipped",
+      "actor": "0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA",
+      "payloadJson": "{\"carrier\":\"Example Freight\",\"from\":\"Porto mill\",\"to\":\"Hamburg DC\",\"waybill\":\"EXF-20260930-0142\"}",
+      "payloadHash": "8fbd73ce1571189b1acd6caa6c1231b14dc6d1e63c6a72e34dd1c1e53dab10b9",
+      "ref": null,
+      "hashValid": true,
+      "malformedReason": null,
+      "rawHash": null,
+      "reconciliation": "n/a",
+      "reconciliationNote": null,
+      "payload": {
+        "carrier": "Example Freight",
+        "from": "Porto mill",
+        "to": "Hamburg DC",
+        "waybill": "EXF-20260930-0142"
+      }
+    },
+    {
+      "id": 25,
+      "topicId": "0.0.10777326",
+      "sequenceNumber": 3,
+      "consensusTimestamp": "1790738634.226304104",
+      "serial": 3,
+      "tokenId": "0.0.10649382",
+      "type": "product.inspected",
+      "actor": "0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA",
+      "payloadJson": "{\"attachments\":[{\"bytes\":171,\"cid\":\"bafkreidsm7uqlroeataasyanykegbplrvk2vytfgaba7s5spbgbqs5td4m\",\"hash\":\"7267e905c5c404c009600dc28860bd71aab55c4ca60041f9764f0983097663e3\",\"name\":\"fibre-test-report.txt\",\"type\":\"text/plain\"}],\"inspector\":\"Example Textile Lab\",\"note\":\"Fibre composition confirmed by lab test\",\"result\":\"pass\"}",
+      "payloadHash": "444135510eb13c77156e3f9ac533d9e13fd043409019fa9ce6f95fe7847771e9",
+      "ref": null,
+      "hashValid": true,
+      "malformedReason": null,
+      "rawHash": null,
+      "reconciliation": "n/a",
+      "reconciliationNote": null,
+      "payload": {
+        "attachments": [
+          {
+            "bytes": 171,
+            "cid": "bafkreidsm7uqlroeataasyanykegbplrvk2vytfgaba7s5spbgbqs5td4m",
+            "hash": "7267e905c5c404c009600dc28860bd71aab55c4ca60041f9764f0983097663e3",
+            "name": "fibre-test-report.txt",
+            "type": "text/plain"
+          }
+        ],
+        "inspector": "Example Textile Lab",
+        "note": "Fibre composition confirmed by lab test",
+        "result": "pass"
+      }
+    },
+    {
+      "id": 26,
+      "topicId": "0.0.10777326",
+      "sequenceNumber": 4,
+      "consensusTimestamp": "1790739452.647693104",
+      "serial": 3,
+      "tokenId": "0.0.10649382",
+      "type": "custody.transferred",
+      "actor": "0x446f1a375e4bD02fa1045C33D6e601163c7Ee5dA",
+      "payloadJson": "{\"from\":\"0.0.10649381\",\"to\":\"0.0.7190733\"}",
+      "payloadHash": "db161a287d2c249e91df985bb3befffefc1693e023aec064b520de2bb2f8688b",
+      "ref": "0xc646735b3ef9db9dc6c634689cc290952c618ceb0af3446418d9adc5aadf9d02",
+      "hashValid": true,
+      "malformedReason": null,
+      "rawHash": null,
+      "reconciliation": "reconciled",
+      "reconciliationNote": "Matched NFT transfer 0.0.7314364-1790739379-282639131.",
+      "payload": {
+        "from": "0.0.10649381",
+        "to": "0.0.7190733"
+      }
+    }
+  ],
+  "transfers": [
+    {
+      "tokenId": "0.0.10649382",
+      "serial": 3,
+      "consensusTimestamp": "1790689293.129069105",
+      "sender": null,
+      "receiver": "0.0.10649381",
+      "transactionId": "0.0.7314364-1790689287-611821984",
+      "isMint": true
+    },
+    {
+      "tokenId": "0.0.10649382",
+      "serial": 3,
+      "consensusTimestamp": "1790739384.189979684",
+      "sender": "0.0.10649381",
+      "receiver": "0.0.7190733",
+      "transactionId": "0.0.7314364-1790739379-282639131",
+      "isMint": false
+    }
+  ],
+  "attachments": [
+    {
+      "topicId": "0.0.10777326",
+      "sequenceNumber": 3,
+      "cid": "bafkreidsm7uqlroeataasyanykegbplrvk2vytfgaba7s5spbgbqs5td4m",
+      "protocol": "ipfs",
+      "declaredHash": "7267e905c5c404c009600dc28860bd71aab55c4ca60041f9764f0983097663e3",
+      "name": "fibre-test-report.txt",
+      "mediaType": "text/plain",
+      "observedHash": "7267e905c5c404c009600dc28860bd71aab55c4ca60041f9764f0983097663e3",
+      "bytes": 171,
+      "state": "verified",
+      "note": "Rebuilt from blocks each checked against the CID, served by gateway.pinata.cloud. No gateway was trusted.",
+      "checkedAt": "2026-10-04T03:35:54.133Z"
+    }
+  ]
+}

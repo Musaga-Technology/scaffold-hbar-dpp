@@ -6,10 +6,17 @@ import { Documents } from "~~/components/passport/Documents";
 import { IdentifierCard } from "~~/components/passport/IdentifierCard";
 import { IndexUnavailable } from "~~/components/passport/IndexUnavailable";
 import { QrPanel } from "~~/components/passport/QrPanel";
+import { SnapshotBanner } from "~~/components/passport/SnapshotBanner";
 import { StatusBadge } from "~~/components/passport/StatusBadge";
 import { Timeline } from "~~/components/passport/Timeline";
 import { verifyPath } from "~~/lib/hashscan";
-import { IndexUnavailableError, getPassport, isDemoMode } from "~~/lib/indexClient";
+import {
+  IndexUnavailableError,
+  TESTNET_SNAPSHOT_TAKEN_AT,
+  getPassport,
+  isDemoMode,
+  isTestnetSnapshot,
+} from "~~/lib/indexClient";
 
 /**
  * The public passport page.
@@ -88,11 +95,15 @@ const Verify = async ({ params }: PageProps) => {
   const manufacturer = typeof fields.manufacturer === "string" ? fields.manufacturer : undefined;
   const gtin = typeof fields.gtin === "string" ? fields.gtin : undefined;
   const discrepancies = events.filter(event => event.reconciliation === "discrepancy");
-  const demo = isDemoMode();
+  // Bundled data either way, but only the two illustrative fixtures have ids
+  // that resolve to nothing. The testnet snapshot's links are real.
+  const snapshot = isTestnetSnapshot(product);
+  const demo = isDemoMode() && !snapshot;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-10">
       {demo && <DemoBanner />}
+      {snapshot && <SnapshotBanner takenAt={TESTNET_SNAPSHOT_TAKEN_AT} />}
 
       <header className="mb-8">
         <div className="flex flex-wrap items-start justify-between gap-4">

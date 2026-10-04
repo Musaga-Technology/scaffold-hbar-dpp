@@ -5,7 +5,7 @@ import { ManagePassport } from "~~/components/passport/ManagePassport";
 import { StatusBadge } from "~~/components/passport/StatusBadge";
 import { Timeline } from "~~/components/passport/Timeline";
 import { WalletGate } from "~~/components/passport/WalletGate";
-import { getPassport, isDemoMode } from "~~/lib/indexClient";
+import { getPassport, isDemoMode, isTestnetSnapshot } from "~~/lib/indexClient";
 import { readCustody } from "~~/services/registry";
 
 /** Manage one passport: log events, transfer custody, review history. */
@@ -61,7 +61,12 @@ const ManagePage = async ({ params }: { params: Promise<{ serial: string }> }) =
 
       <section>
         <h2 className="mb-3 mt-0 text-lg font-bold">History</h2>
-        <Timeline events={events} tokenId={product.tokenId} serial={product.serial} demo={isDemoMode()} />
+        <Timeline
+          events={events}
+          tokenId={product.tokenId}
+          serial={product.serial}
+          demo={isDemoMode() && !isTestnetSnapshot(product)}
+        />
       </section>
     </div>
   );
