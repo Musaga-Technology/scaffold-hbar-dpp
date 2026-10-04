@@ -34,12 +34,22 @@ Arweave for the documents.
 | --- | --- |
 | ![Verified: every custody claim matches the NFT's transfer history, and every document matches its attested hash](docs/screenshots/verify-verified.png) | ![Discrepancy: a hand-over the ledger never saw, and a report that does not match its attestation](docs/screenshots/verify-discrepancy.png) |
 
-**Contents:** [Two ways in](#two-ways-in) · [What people use it for](#what-people-use-this-for) ·
-[Prerequisites](#what-you-need-installed) · [Look at it](#look-at-it--30-seconds-once-installed-no-account) ·
-[Run it for real](#run-it-for-real--5-commands) · [Proof on testnet](#proof-it-runs-on-hedera-testnet) ·
-[Register your own products](#register-your-own-products) · [How it works](#how-it-works-briefly) ·
-[Commands](#commands) · [Deploy](#deploy-it) · [Configure](#configure-it) · [Extend](#extend-it) ·
-[Start over](#starting-over-with-a-fresh-registry) · [Troubleshooting](#troubleshooting)
+## Contents
+
+1. [Two ways in](#two-ways-in) — look at it in 30 seconds, or run it for real
+2. [What people use it for](#what-people-use-this-for) — batteries, textiles, food, pharma, machinery
+3. [Prerequisites](#what-you-need-installed) — Node 20.18.3+, and a funded account only for testnet
+4. [Look at it](#look-at-it--30-seconds-once-installed-no-account) — no account, no keys
+5. [Run it for real](#run-it-for-real--5-commands) — five commands to your own registry on testnet
+6. [Proof on testnet](#proof-it-runs-on-hedera-testnet) — every step of a real passport, with HashScan links
+7. [Register your own products](#register-your-own-products) — the issuer page and MetaMask
+8. [How it works](#how-it-works-briefly) — NFTs, HCS, the indexer and document checks
+9. [Commands](#commands) — everything you can run
+10. [Deploy it](#deploy-it) — Docker Compose on any host
+11. [Configure it](#configure-it) — every environment variable
+12. [Extend it](#extend-it) — a new product category is one JSON file
+13. [Start over](#starting-over-with-a-fresh-registry) — a fresh registry
+14. [Troubleshooting](#troubleshooting) — the errors you are likely to meet
 
 **What makes this more than a database with a blockchain attached:**
 
