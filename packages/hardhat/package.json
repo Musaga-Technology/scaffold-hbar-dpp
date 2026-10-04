@@ -21,6 +21,7 @@
     "passport:status": "hardhat run scripts/status.ts --network hederaTestnet",
     "passport:verify": "hardhat run scripts/verify.ts --network hederaTestnet",
     "test": "REPORT_GAS=true hardhat test",
+    "coverage": "hardhat coverage",
     "test:forking": "HEDERA_FORKING=true REPORT_GAS=true hardhat test",
     "verify": "hardhat verify",
     "verify:testnet": "hardhat verify --network hederaTestnet",

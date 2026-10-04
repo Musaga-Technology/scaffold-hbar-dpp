@@ -19,6 +19,7 @@
     "hardhat:check-types": "yarn workspace @sh/hardhat check-types",
     "hardhat:clean": "yarn workspace @sh/hardhat clean",
     "hardhat:compile": "yarn workspace @sh/hardhat compile",
+    "hardhat:coverage": "yarn workspace @sh/hardhat coverage",
     "hardhat:deploy": "yarn workspace @sh/hardhat deploy",
     "hardhat:flatten": "yarn workspace @sh/hardhat flatten",
     "hardhat:fork": "yarn workspace @sh/hardhat fork",

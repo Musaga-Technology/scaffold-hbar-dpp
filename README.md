@@ -3,7 +3,9 @@
 [![ci](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/ci.yml/badge.svg)](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/ci.yml)
 [![fresh scaffold](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/fresh-scaffold.yml/badge.svg)](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/fresh-scaffold.yml)
 ![tests](https://img.shields.io/badge/tests-108%20contract%20%2B%20178%20indexer-2ea44f)
+![coverage](https://img.shields.io/badge/PassportRegistry%20coverage-100%25%20lines%20%C2%B7%2085%25%20branches-2ea44f)
 [![Hedera testnet](https://img.shields.io/badge/Hedera%20testnet-live-1D4ED8)](#proof-it-runs-on-hedera-testnet)
+[![live demo](https://img.shields.io/badge/live%20demo-product--passport--silk.vercel.app-000000)](https://product-passport-silk.vercel.app)
 [![licence](https://img.shields.io/badge/licence-MIT-lightgrey)](LICENSE)
 ![node](https://img.shields.io/badge/node-%E2%89%A520.18.3-339933)
 
@@ -14,6 +16,11 @@ every claim against Hedera yourself.
 ```bash
 npm create scaffold-hbar@latest my-passports -- --template Musaga-Technology/scaffold-hbar-dpp
 ```
+
+**Try it live:** [product-passport-silk.vercel.app](https://product-passport-silk.vercel.app) — no wallet,
+no install. Open [a passport that checks out](https://product-passport-silk.vercel.app/verify/1),
+[one that is caught](https://product-passport-silk.vercel.app/verify/2), and
+[a real one on Hedera testnet](https://product-passport-silk.vercel.app/verify/3).
 
 A scaffold-hbar template. Next.js + Hardhat + a mirror-node indexer + IPFS or
 Arweave for the documents.
@@ -379,6 +386,7 @@ Why it is built this way: [docs/design-notes.md](docs/design-notes.md).
 | `yarn hardhat:account:generate` · `:import` · `:reveal-pk` | Create, import or print the deployer key (encrypted at rest) |
 | `yarn lint` · `yarn next:check-types` · `yarn indexer:check-types` · `yarn hardhat:compile` · `yarn hardhat:test` · `yarn indexer:test` · `yarn next:build` | The gates CI runs, in that order |
 | `yarn hardhat:test:forking` | Optional — runs the contract against the real HTS precompile on a fork |
+| `yarn hardhat:coverage` | Contract coverage: `PassportRegistry.sol` is at 100% of lines and functions, 85% of branches |
 | `yarn smoke` | With the app running, load every page in a real browser; fails on missing content, any console error, or a browser read of HCS |
 | `npx hedera-harness validate` | The template's self-check: every gate above, then a browser check of six routes |
 
