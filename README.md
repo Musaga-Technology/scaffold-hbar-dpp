@@ -141,7 +141,8 @@ yarn next:start                   # http://localhost:3000/verify/1
 
 `passport:bootstrap` is idempotent — if it fails halfway, fix the cause and run
 it again. Finished steps are skipped, not paid for twice. If anything looks
-wrong, `yarn passport:status` checks every entity against the mirror node.
+wrong, `yarn passport:status` checks every entity against the mirror node, and
+`yarn passport:verify` publishes the registry's source on HashScan.
 
 ## Proof it runs on Hedera testnet
 
@@ -338,6 +339,7 @@ Why it is built this way: [docs/design-notes.md](docs/design-notes.md).
 | `yarn passport:bootstrap` | **Start here.** Zero to a live passport on Hedera testnet |
 | `yarn passport:new-product` | Later, to add *another demo* product to the same registry; earlier ones stay indexed. Your own products are registered on the issuer page, not here |
 | `yarn passport:status` | Check every entity against the mirror node |
+| `yarn passport:verify` | Publish the registry's Solidity source on HashScan, via Sourcify. No key, no transaction; safe to re-run |
 | `yarn indexer:dev` | Poll, reconcile, serve the index API |
 | `yarn indexer:replay` | Drop the index and rebuild from sequence 1 |
 | `yarn indexer:verify` | Replay into a temp index and diff it against the live one |
@@ -346,6 +348,8 @@ Why it is built this way: [docs/design-notes.md](docs/design-notes.md).
 | `yarn hardhat:account:generate` · `:import` · `:reveal-pk` | Create, import or print the deployer key (encrypted at rest) |
 | `yarn lint` · `yarn next:check-types` · `yarn indexer:check-types` · `yarn hardhat:compile` · `yarn hardhat:test` · `yarn indexer:test` · `yarn next:build` | The gates CI runs, in that order |
 | `yarn hardhat:test:forking` | Optional — runs the contract against the real HTS precompile on a fork |
+| `yarn smoke` | With the app running, load every page in a real browser; fails on missing content, any console error, or a browser read of HCS |
+| `npx hedera-harness validate` | The template's self-check: every gate above, then a browser check of six routes |
 
 ## Deploy it
 

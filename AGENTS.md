@@ -28,6 +28,7 @@ These are not style preferences. Breaking one breaks the template's premise.
 | `packages/hardhat/test/PassportRegistry.forking.test.ts` | Opt-in checks against the real precompile; also pins where the forking plugin stops short |
 | `packages/hardhat/scripts/bootstrap.ts` | Zero-to-testnet; idempotent, records `passport.state.json` |
 | `packages/hardhat/scripts/status.ts` | Checks every entity against the mirror node; needs no key |
+| `packages/hardhat/scripts/lib/sourcify.ts` | Source verification through Sourcify's v2 API — `hardhat verify` still calls the removed v1 |
 | `packages/hardhat/scripts/lib/events.ts` | Canonicalisation, sha256, event construction |
 | `packages/indexer/src/` | Mirror node poller, decoder, store, reconciliation |
 | `packages/indexer/src/reconcile.ts` | Where custody claims are checked against NFT transfers |
@@ -59,6 +60,7 @@ yarn indexer:test
 yarn passport:bootstrap        # deploy + collection + topic + demo product
 yarn passport:new-product      # another demo product on the same registry
 yarn passport:status           # diagnostics, no key needed
+yarn passport:verify           # publish the registry's source via Sourcify (v2 API); no key
 ```
 
 The harness runs the offline gates — install, lint, `next:check-types`, `hardhat:compile`, `hardhat:test`, `indexer:test` and `next:build`; see `.harness/validators/yarn.json`. CI runs the same plus `indexer:check-types`. Run them before claiming an increment is done. The `passport:*` commands touch Hedera testnet and are never run by either.

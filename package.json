@@ -51,6 +51,7 @@
     "passport:bootstrap": "yarn workspace @sh/hardhat passport:bootstrap",
     "passport:new-product": "yarn workspace @sh/hardhat passport:new-product",
     "passport:status": "yarn workspace @sh/hardhat passport:status",
+    "passport:verify": "yarn workspace @sh/hardhat passport:verify",
     "postinstall": "husky",
     "precommit": "lint-staged",
     "lint-staged": "lint-staged",
