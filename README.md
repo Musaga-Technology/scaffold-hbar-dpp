@@ -1,5 +1,12 @@
 # product-passport
 
+[![ci](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/ci.yml/badge.svg)](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/ci.yml)
+[![fresh scaffold](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/fresh-scaffold.yml/badge.svg)](https://github.com/Musaga-Technology/scaffold-hbar-dpp/actions/workflows/fresh-scaffold.yml)
+![tests](https://img.shields.io/badge/tests-108%20contract%20%2B%20178%20indexer-2ea44f)
+[![Hedera testnet](https://img.shields.io/badge/Hedera%20testnet-live-1D4ED8)](#proof-it-runs-on-hedera-testnet)
+[![licence](https://img.shields.io/badge/licence-MIT-lightgrey)](LICENSE)
+![node](https://img.shields.io/badge/node-%E2%89%A520.18.3-339933)
+
 **Give a physical product a public, verifiable history.** A battery, a garment, a
 pallet of coffee. Scan a QR code, see everything that happened to it, and check
 every claim against Hedera yourself.
@@ -10,6 +17,15 @@ npm create scaffold-hbar@latest my-passports -- --template Musaga-Technology/sca
 
 A scaffold-hbar template. Next.js + Hardhat + a mirror-node indexer + IPFS or
 Arweave for the documents.
+
+<p align="center">
+  <a href="https://youtu.be/kcVanYI-7HM"><img src="https://img.youtube.com/vi/kcVanYI-7HM/maxresdefault.jpg" alt="Watch the Product Passport demo on YouTube" width="720" /></a><br />
+  <sub>▶ <a href="https://youtu.be/kcVanYI-7HM">Watch the 4½-minute demo</a>: one command to scaffold, a passport with no keys, a fresh registry on testnet, products registered and handed over through MetaMask, and every claim checked on HashScan.</sub>
+</p>
+
+| A passport whose claims check out | A passport that is caught |
+| --- | --- |
+| ![Verified: every custody claim matches the NFT's transfer history, and every document matches its attested hash](docs/screenshots/verify-verified.png) | ![Discrepancy: a hand-over the ledger never saw, and a report that does not match its attestation](docs/screenshots/verify-discrepancy.png) |
 
 **What makes this more than a database with a blockchain attached:**
 
@@ -148,17 +164,21 @@ wrong, `yarn passport:status` checks every entity against the mirror node, and
 
 Serial 3 was made on 29–30 September 2026 entirely through the issuer page,
 with MetaMask — not by a script. It exercises the whole lifecycle: registered,
-shipped, inspected with a lab report attached, and handed over. Open any of
-these:
+shipped, inspected with a lab report attached, and handed over. Every step,
+as it happened:
 
-| | |
+| Step | On Hedera |
 | --- | --- |
-| Registry contract | [`0xCBc3089c…5f22D5a7A`](https://hashscan.io/testnet/contract/0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A) |
-| Collection | [`0.0.10649382`](https://hashscan.io/testnet/token/0.0.10649382) |
-| Passport serial 3 | [`0.0.10649382/3`](https://hashscan.io/testnet/token/0.0.10649382/3) |
-| Lifecycle topic | [`0.0.10777326`](https://hashscan.io/testnet/topic/0.0.10777326) |
-| HIP-412 metadata, on the serial | [`ipfs://bafkreigi6m…nfxiyu`](https://inbrowser.link/ipfs/bafkreigi6mq5i3zi3cqna7v5eau5v4qwxuchqm5w5qfnrplsdfz3nfxiyu) |
-| Fibre test report, attached to the inspection | [`ipfs://bafkreidsm7…5td4m`](https://inbrowser.link/ipfs/bafkreidsm7uqlroeataasyanykegbplrvk2vytfgaba7s5spbgbqs5td4m) |
+| Registry deployed — source verified | [`0xCBc3089c…5f22D5a7A`](https://hashscan.io/testnet/contract/0xCBc3089cb39ef55114341Ff1aB9BFeA5f22D5a7A) |
+| HTS collection created by the registry | [`0.0.10649382`](https://hashscan.io/testnet/token/0.0.10649382) |
+| Lifecycle topic created for serial 3 | [`0.0.10777326`](https://hashscan.io/testnet/topic/0.0.10777326) |
+| Serial 3 minted, signed in MetaMask | [mint transaction](https://hashscan.io/testnet/transaction/1790689293.129069105) |
+| Event 1 — registered | [HCS message](https://hashscan.io/testnet/transaction/1790689326.912431571) |
+| Event 2 — shipped | [HCS message](https://hashscan.io/testnet/transaction/1790738289.761227104) |
+| Event 3 — inspected, lab report attached by CID | [HCS message](https://hashscan.io/testnet/transaction/1790738634.226304104) · [report on IPFS](https://inbrowser.link/ipfs/bafkreidsm7uqlroeataasyanykegbplrvk2vytfgaba7s5spbgbqs5td4m) |
+| NFT handed over to `0.0.7190733`, signed in MetaMask | [transfer transaction](https://hashscan.io/testnet/transaction/1790739384.189979684) |
+| Event 4 — custody transferred, the claim that must match it | [HCS message](https://hashscan.io/testnet/transaction/1790739452.647693104) |
+| The passport itself | [serial 3](https://hashscan.io/testnet/token/0.0.10649382/3) · [HIP-412 metadata](https://inbrowser.link/ipfs/bafkreigi6mq5i3zi3cqna7v5eau5v4qwxuchqm5w5qfnrplsdfz3nfxiyu) |
 
 Read the topic yourself, without trusting this page:
 

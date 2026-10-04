@@ -15,6 +15,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Daily as well: the CLI and its dependencies change without this repo
+  # changing. The template.json removal in create-scaffold-hbar 0.4.1 broke
+  # the harness in every generated project, and nothing here had moved.
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
 
 jobs:
   scaffold:

@@ -1,0 +1,7 @@
+# Secret scanning for CI. The default rules, minus one vendored file.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The vendored Yarn release is minified third-party code; its token-like strings are not secrets."
+paths = ['''^\.yarn/releases/''']
