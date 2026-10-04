@@ -87,10 +87,6 @@ registration form, the validation and how the passport renders. See
 | Run on testnet | The same, plus a funded ECDSA account. |
 | Run it in containers | Docker alone — for the demo, or a registry you have already bootstrapped. The bootstrap itself runs on the host. |
 
-`yarn install` pulls about 2.6 GB — Next.js, RainbowKit and the Solidity
-toolchain, mostly inherited from scaffold-hbar. About 7 MB of it is this
-template's own IPFS verification; most of the rest is the wallet connectors.
-
 ## Look at it — 30 seconds once installed, no account
 
 ```bash
