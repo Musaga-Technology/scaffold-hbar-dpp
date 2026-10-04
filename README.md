@@ -27,6 +27,13 @@ Arweave for the documents.
 | --- | --- |
 | ![Verified: every custody claim matches the NFT's transfer history, and every document matches its attested hash](docs/screenshots/verify-verified.png) | ![Discrepancy: a hand-over the ledger never saw, and a report that does not match its attestation](docs/screenshots/verify-discrepancy.png) |
 
+**Contents:** [Two ways in](#two-ways-in) · [What people use it for](#what-people-use-this-for) ·
+[Prerequisites](#what-you-need-installed) · [Look at it](#look-at-it--30-seconds-once-installed-no-account) ·
+[Run it for real](#run-it-for-real--5-commands) · [Proof on testnet](#proof-it-runs-on-hedera-testnet) ·
+[Register your own products](#register-your-own-products) · [How it works](#how-it-works-briefly) ·
+[Commands](#commands) · [Deploy](#deploy-it) · [Configure](#configure-it) · [Extend](#extend-it) ·
+[Start over](#starting-over-with-a-fresh-registry) · [Troubleshooting](#troubleshooting)
+
 **What makes this more than a database with a blockchain attached:**
 
 - **Certificates are content-addressed, and checked without trusting anyone.**
@@ -119,6 +126,10 @@ says so, in red, instead of showing a green tick.
 
 That contrast is the entire point of the template. Everything below is how to do
 it with real products.
+
+**/verify/3** is different: a snapshot of a real passport on Hedera testnet,
+bundled so you can see one before deploying anything. Its links open the
+actual records on HashScan and IPFS.
 
 ![A passport that fails its checks: the custody claim flagged in red with the reason, and a document that does not match the hash committed on HCS](docs/screenshots/verify-discrepancy.png)
 
